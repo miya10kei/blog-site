@@ -58,7 +58,7 @@
 | マークダウン | MDX + next-mdx-remote-client | 活発メンテ、MDX v3、React 19対応 |
 | コードハイライト | Shiki | VSCode同等のハイライト |
 | ダークモード | next-themes | 簡単実装、フラッシュ防止 |
-| 検索 | Pagefind | 静的サイト向け、高速 |
+| 検索 | Fuse.js | クライアントサイド、ランタイムコンテンツ対応 |
 | テスト | Vitest + React Testing Library | 高速、ESM対応、DX良好 |
 | E2Eテスト | Playwright | クロスブラウザ対応、非同期RSC対応 |
 | Linter/Formatter | Biome | 超高速、ESLint+Prettier統合、Rust製 |
@@ -154,6 +154,15 @@ tech-blog/
 
 v4では `tailwind.config.ts` が不要。CSSファイル内で設定：
 
+```javascript
+// postcss.config.mjs
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {}
+  }
+}
+```
+
 ```css
 /* app/globals.css */
 @import "tailwindcss";
@@ -167,14 +176,14 @@ v4では `tailwind.config.ts` が不要。CSSファイル内で設定：
 
 ### コンテンツリポジトリ構造 (tech-blog-content)
 
+フラット構造を採用（日付はfrontmatterで管理）：
+
 ```
 tech-blog-content/
 ├── blog/
-│   ├── 2024/
-│   │   ├── hello-world.mdx
-│   │   └── getting-started-nextjs.mdx
-│   └── 2025/
-│       └── new-year-goals.mdx
+│   ├── hello-world.mdx
+│   ├── getting-started-nextjs.mdx
+│   └── new-year-goals.mdx
 ├── projects/
 │   ├── project-1.mdx
 │   └── project-2.mdx
@@ -381,9 +390,28 @@ published: true
 - LocalStorageで保存
 
 ### 3. 検索機能
-- Pagefindによる全文検索
+- Fuse.jsによるファジー検索（ランタイムコンテンツ対応）
 - キーボードショートカット (Cmd/Ctrl + K)
 - 検索結果ハイライト
+
+```typescript
+// lib/search.ts
+import Fuse from 'fuse.js'
+
+const fuseOptions = {
+  keys: ['title', 'description', 'tags'],
+  threshold: 0.3,
+  includeScore: true
+}
+
+export function createSearchIndex(posts: Post[]) {
+  return new Fuse(posts, fuseOptions)
+}
+
+export function searchPosts(fuse: Fuse<Post>, query: string) {
+  return fuse.search(query).map(result => result.item)
+}
+```
 
 ### 4. RSS フィード
 - `/feed.xml` でRSSフィード提供
@@ -397,7 +425,7 @@ published: true
 
 ### 6. パフォーマンス最適化
 - 画像最適化 (next/image)
-- 静的サイト生成 (SSG)
+- ISR (Incremental Static Regeneration)
 - フォント最適化
 - **Turbopack** 開発ビルド高速化
 - **Streaming** Suspenseによる段階的表示
@@ -426,57 +454,7 @@ export const event = (action: string, category: string, label: string, value?: n
 }
 ```
 
-```typescript
-// app/layout.tsx
-import Script from 'next/script'
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <head>
-        <Script
-          strategy="afterInteractive"
-          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
-        />
-        <Script id="gtag-init" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
-          `}
-        </Script>
-      </head>
-      <body>{children}</body>
-    </html>
-  )
-}
-```
-
-```typescript
-// components/Analytics.tsx - ページビュートラッキング
-'use client'
-import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
-import { pageview } from '@/lib/gtag'
-
-export function Analytics() {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-
-  useEffect(() => {
-    const url = pathname + searchParams.toString()
-    pageview(url)
-  }, [pathname, searchParams])
-
-  return null
-}
-```
-
-環境変数:
-```bash
-NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
-```
+※ layout.tsx の統合サンプルは「Vercel Observability」セクションを参照
 
 ### 8. Error/Loading UI
 
@@ -713,23 +691,61 @@ Vercelの無料オブザーバビリティ機能でモニタリング。
 | **Speed Insights** | Core Web Vitalsモニタリング | 無制限 |
 | **Web Analytics** | プライバシーフレンドリーなアクセス解析 | 2,500イベント/月 |
 
-**有効化方法:**
+**統合 layout.tsx (GA + Vercel Analytics):**
 
 ```typescript
 // app/layout.tsx
+import Script from 'next/script'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { Analytics } from '@vercel/analytics/react'
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
+import { GoogleAnalytics } from '@/components/GoogleAnalytics'
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html>
+    <html lang="ja" suppressHydrationWarning>
+      <head>
+        <Script
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+          `}
+        </Script>
+      </head>
       <body>
         {children}
+        <GoogleAnalytics />
         <SpeedInsights />
-        <Analytics />
+        <VercelAnalytics />
       </body>
     </html>
   )
+}
+```
+
+```typescript
+// components/GoogleAnalytics.tsx
+'use client'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
+
+export function GoogleAnalytics() {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const url = pathname + searchParams.toString()
+    window.gtag?.('config', process.env.NEXT_PUBLIC_GA_ID!, {
+      page_path: url
+    })
+  }, [pathname, searchParams])
+
+  return null
 }
 ```
 
@@ -801,7 +817,7 @@ Dark Mode:
 ### Phase 5: 機能追加 (TDD)
 1. 目次コンポーネントのテスト作成 → 実装
 2. SNSシェアボタンのテスト作成 → 実装
-3. 検索機能のテスト作成 → 実装 (Pagefind)
+3. 検索機能のテスト作成 → 実装 (Fuse.js)
 4. RSS フィードのテスト作成 → 実装
 
 ### Phase 6: 最適化・デプロイ
@@ -826,13 +842,14 @@ Dark Mode:
     "next-themes": "^0.4.0",
     "next-mdx-remote-client": "^2.0.0",
     "lucide-react": "^0.400.0",
+    "fuse.js": "^7.0.0",
     "@vercel/speed-insights": "^1.0.0",
     "@vercel/analytics": "^1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
     "tailwindcss": "^4.0.0",
-    "@tailwindcss/vite": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
     "shiki": "^1.0.0",
     "rehype-slug": "^6.0.0",
     "rehype-autolink-headings": "^7.0.0",
