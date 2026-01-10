@@ -52,86 +52,115 @@
 
 | カテゴリ | 技術 | 理由 |
 |----------|------|------|
-| フレームワーク | Next.js 14+ (App Router) | 最も人気、SSG対応、React エコシステム |
+| フレームワーク | Next.js 15 (App Router) | Turbopack標準、React 19対応、最新 |
 | 言語 | TypeScript | 型安全、開発体験向上 |
-| スタイリング | Tailwind CSS | 高速開発、カスタマイズ性 |
+| スタイリング | Tailwind CSS v4 | Oxide Engine (5x高速)、Zero config |
 | マークダウン | MDX + next-mdx-remote | ランタイムMDX処理、リモートコンテンツ対応 |
 | コードハイライト | Shiki | VSCode同等のハイライト |
 | ダークモード | next-themes | 簡単実装、フラッシュ防止 |
 | 検索 | Pagefind | 静的サイト向け、高速 |
 | テスト | Vitest + React Testing Library | 高速、ESM対応、DX良好 |
-| E2Eテスト | Playwright | クロスブラウザ対応、信頼性高い |
+| E2Eテスト | Playwright | クロスブラウザ対応、非同期RSC対応 |
 | Linter/Formatter | Biome | 超高速、ESLint+Prettier統合、Rust製 |
-| ホスティング | Vercel | Next.js最適、自動デプロイ |
+| ホスティング | Vercel | Next.js最適、Edge Runtime対応 |
+
+### Next.js 15 の新機能活用
+
+- **Turbopack**: 開発時ビルド高速化 (`next dev --turbo`)
+- **React 19**: Server Components安定化、Actions改善
+- **Streaming**: Suspenseによる段階的表示
+- **Edge Runtime**: グローバル低レイテンシ配信
 
 ## ディレクトリ構造
 
 ```
 tech-blog/
-├── app/                      # Next.js App Router
-│   ├── layout.tsx            # ルートレイアウト
-│   ├── page.tsx              # ホームページ
-│   ├── blog/
-│   │   ├── page.tsx          # ブログ一覧
-│   │   └── [slug]/
-│   │       └── page.tsx      # ブログ記事詳細
-│   ├── portfolio/
-│   │   └── page.tsx          # ポートフォリオページ
-│   ├── about/
-│   │   └── page.tsx          # 自己紹介ページ
-│   ├── tags/
-│   │   ├── page.tsx          # タグ一覧
-│   │   └── [tag]/
-│   │       └── page.tsx      # タグ別記事一覧
-│   ├── categories/
-│   │   └── [category]/
-│   │       └── page.tsx      # カテゴリ別記事一覧
+├── app/                        # Next.js App Router
+│   ├── layout.tsx              # ルートレイアウト
+│   ├── loading.tsx             # グローバルローディングUI
+│   ├── error.tsx               # グローバルエラーUI
+│   ├── not-found.tsx           # 404ページ
+│   ├── (marketing)/            # Route Group: マーケティング
+│   │   ├── page.tsx            # ホームページ
+│   │   └── about/
+│   │       └── page.tsx        # 自己紹介
+│   ├── (content)/              # Route Group: コンテンツ
+│   │   ├── blog/
+│   │   │   ├── page.tsx        # ブログ一覧
+│   │   │   ├── loading.tsx     # ブログローディング
+│   │   │   └── [slug]/
+│   │   │       └── page.tsx    # 記事詳細
+│   │   ├── portfolio/
+│   │   │   └── page.tsx        # ポートフォリオ
+│   │   └── tags/
+│   │       ├── page.tsx        # タグ一覧
+│   │       └── [tag]/
+│   │           └── page.tsx    # タグ別記事
+│   ├── api/
+│   │   └── revalidate/
+│   │       └── route.ts        # On-demand Revalidation
 │   └── feed.xml/
-│       └── route.ts          # RSS フィード
+│       └── route.ts            # RSS フィード
 ├── components/
 │   ├── layout/
-│   │   ├── Header.tsx        # ヘッダー
-│   │   ├── Footer.tsx        # フッター
-│   │   └── Navigation.tsx    # ナビゲーション
+│   │   ├── Header.tsx
+│   │   ├── Footer.tsx
+│   │   └── Navigation.tsx
+│   └── ui/                     # 共通UIコンポーネント
+│       ├── Button.tsx
+│       ├── Card.tsx
+│       └── ThemeToggle.tsx
+├── features/                   # 機能別モジュール
 │   ├── blog/
-│   │   ├── PostCard.tsx      # 記事カード
-│   │   ├── PostList.tsx      # 記事一覧
-│   │   ├── TableOfContents.tsx # 目次
-│   │   ├── ShareButtons.tsx  # SNSシェアボタン
-│   │   └── TagList.tsx       # タグ一覧
+│   │   ├── components/
+│   │   │   ├── PostCard.tsx
+│   │   │   ├── PostList.tsx
+│   │   │   ├── TableOfContents.tsx
+│   │   │   └── ShareButtons.tsx
+│   │   ├── hooks/
+│   │   │   └── useTableOfContents.ts
+│   │   └── utils/
+│   │       └── parse-frontmatter.ts
 │   ├── portfolio/
-│   │   └── ProjectCard.tsx   # プロジェクトカード
-│   ├── ui/
-│   │   ├── Button.tsx
-│   │   ├── Card.tsx
-│   │   └── ThemeToggle.tsx   # ダークモード切替
+│   │   └── components/
+│   │       └── ProjectCard.tsx
 │   └── search/
-│       └── SearchModal.tsx   # 検索モーダル
+│       ├── components/
+│       │   └── SearchModal.tsx
+│       └── hooks/
+│           └── useSearch.ts
 ├── lib/
-│   ├── content.ts            # コンテンツ取得 (GitHub API)
-│   ├── mdx.ts                # MDXパース (next-mdx-remote)
-│   └── utils.ts              # ユーティリティ
-├── __tests__/                # テストファイル
-│   ├── components/           # コンポーネントテスト
-│   │   ├── PostCard.test.tsx
-│   │   └── Header.test.tsx
-│   ├── lib/                  # ユーティリティテスト
-│   │   └── utils.test.ts
-│   └── e2e/                  # E2Eテスト (Playwright)
-│       ├── blog.spec.ts
-│       └── navigation.spec.ts
+│   ├── content.ts              # コンテンツ取得 (GitHub API)
+│   ├── mdx.ts                  # MDXパース
+│   └── utils.ts                # ユーティリティ
+├── __tests__/
+│   ├── components/
+│   ├── features/
+│   ├── lib/
+│   └── e2e/                    # Playwright E2Eテスト
 ├── public/
-│   ├── images/               # 画像
-│   └── favicon.ico
-├── styles/
-│   └── globals.css           # グローバルスタイル
-├── vitest.config.ts          # Vitest設定
-├── playwright.config.ts      # Playwright設定
-├── biome.json                # Biome設定 (Linter + Formatter)
-├── next.config.js
-├── tailwind.config.ts
-├── tsconfig.json
+│   └── images/
+├── app/globals.css             # Tailwind v4 (CSS内で設定)
+├── vitest.config.ts
+├── playwright.config.ts
+├── biome.json
+├── next.config.ts              # .ts推奨
 └── package.json
+```
+
+### Tailwind CSS v4 の設定
+
+v4では `tailwind.config.ts` が不要。CSSファイル内で設定：
+
+```css
+/* app/globals.css */
+@import "tailwindcss";
+
+@theme {
+  --color-primary: oklch(0.6 0.15 250);
+  --color-accent: oklch(0.65 0.15 300);
+  --font-sans: "Inter", sans-serif;
+}
 ```
 
 ### コンテンツリポジトリ構造 (tech-blog-content)
@@ -164,7 +193,9 @@ tech-blog-content/
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/user/tech-blog-content/main'
 
 export async function getPost(slug: string) {
-  const url = `${GITHUB_RAW_BASE}/blog/${slug}.mdx`
+  // セキュリティ: slugをサニタイズ
+  const sanitizedSlug = slug.replace(/[^a-zA-Z0-9-]/g, '')
+  const url = `${GITHUB_RAW_BASE}/blog/${sanitizedSlug}.mdx`
   const response = await fetch(url, {
     next: { revalidate: 3600 } // 1時間キャッシュ
   })
@@ -185,20 +216,69 @@ export async function getPostList() {
 ```typescript
 // app/blog/[slug]/page.tsx
 import { MDXRemote } from 'next-mdx-remote/rsc'
+import { Suspense } from 'react'
 import { getPost } from '@/lib/content'
+import { mdxComponents } from '@/lib/mdx'
 
 export default async function PostPage({ params }: { params: { slug: string } }) {
   const source = await getPost(params.slug)
 
   return (
     <article>
-      <MDXRemote source={source} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <MDXRemote source={source} components={mdxComponents} />
+      </Suspense>
     </article>
   )
 }
 
 // ISR: 1時間ごとに再生成
 export const revalidate = 3600
+```
+
+### On-demand Revalidation
+
+記事更新時に即座にキャッシュを更新：
+
+```typescript
+// app/api/revalidate/route.ts
+import { revalidatePath } from 'next/cache'
+import { NextRequest } from 'next/server'
+
+export async function POST(request: NextRequest) {
+  const { slug, secret } = await request.json()
+
+  // Webhookシークレットを検証
+  if (secret !== process.env.REVALIDATE_SECRET) {
+    return Response.json({ error: 'Invalid secret' }, { status: 401 })
+  }
+
+  revalidatePath(`/blog/${slug}`)
+  revalidatePath('/blog')
+
+  return Response.json({ revalidated: true, slug })
+}
+```
+
+### セキュリティ注意事項
+
+⚠️ **next-mdx-remote のセキュリティ**
+
+MDXはJavaScriptにコンパイルされサーバーで実行される。
+
+| リスク | 対策 |
+|--------|------|
+| RCE (リモートコード実行) | 信頼できるソース（自分のGitHubリポジトリ）のみから取得 |
+| XSS | ユーザー入力をMDXに含めない |
+| パストラバーサル | slugをサニタイズ |
+
+```typescript
+// ❌ 危険: ユーザー入力を直接使用
+<MDXRemote source={userInput} />
+
+// ✅ 安全: 信頼できるソースのみ
+const source = await getPost(sanitizedSlug) // GitHub Raw のみ
+<MDXRemote source={source} components={allowedComponents} />
 ```
 
 ### キャッシュ戦略
@@ -294,6 +374,34 @@ published: true
 - 画像最適化 (next/image)
 - 静的サイト生成 (SSG)
 - フォント最適化
+- **Turbopack** 開発ビルド高速化
+- **Streaming** Suspenseによる段階的表示
+- **Edge Runtime** 低レイテンシ配信
+
+### 7. Error/Loading UI
+
+```typescript
+// app/error.tsx - グローバルエラーUI
+'use client'
+export default function Error({ error, reset }) {
+  return (
+    <div>
+      <h2>エラーが発生しました</h2>
+      <button onClick={() => reset()}>再試行</button>
+    </div>
+  )
+}
+
+// app/loading.tsx - グローバルローディングUI
+export default function Loading() {
+  return <div>読み込み中...</div>
+}
+
+// app/(content)/blog/loading.tsx - ブログ専用ローディング
+export default function BlogLoading() {
+  return <PostCardSkeleton />
+}
+```
 
 ## テスト戦略 (TDD)
 
@@ -311,8 +419,32 @@ Red → Green → Refactor
 | 種類 | ツール | 対象 | 実行タイミング |
 |------|--------|------|----------------|
 | ユニットテスト | Vitest | 関数、ユーティリティ | 常時（watch mode） |
-| コンポーネントテスト | Vitest + RTL | Reactコンポーネント | 常時（watch mode） |
-| E2Eテスト | Playwright | ユーザーフロー全体 | CI/CD、リリース前 |
+| コンポーネントテスト | Vitest + RTL | Client / 同期Server Components | 常時（watch mode） |
+| E2Eテスト | Playwright | **非同期Server Components**、ユーザーフロー | CI/CD、リリース前 |
+
+### ⚠️ 非同期Server Componentsのテスト
+
+Vitestは非同期Server Componentsをサポートしていない。E2Eテストで対応：
+
+```typescript
+// ❌ Vitestでテスト不可（非同期Server Component）
+export default async function PostPage() {
+  const data = await fetch(...)  // 非同期
+  return <div>{data}</div>
+}
+
+// ✅ Playwrightでテスト
+test('post page should render content', async ({ page }) => {
+  await page.goto('/blog/hello-world')
+  await expect(page.locator('article')).toBeVisible()
+})
+```
+
+| コンポーネント種類 | Vitest | Playwright |
+|-------------------|--------|------------|
+| Client Components | ✅ | ✅ |
+| 同期 Server Components | ✅ | ✅ |
+| 非同期 Server Components | ❌ | ✅ |
 
 ### テスト方針
 
@@ -484,30 +616,30 @@ Dark Mode:
 ```json
 {
   "dependencies": {
-    "next": "^14.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
-    "next-themes": "^0.2.0",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "next-themes": "^0.4.0",
     "next-mdx-remote": "^5.0.0",
-    "lucide-react": "^0.300.0"
+    "lucide-react": "^0.400.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "tailwindcss": "^3.4.0",
-    "@tailwindcss/typography": "^0.5.0",
+    "typescript": "^5.6.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/vite": "^4.0.0",
     "shiki": "^1.0.0",
     "rehype-slug": "^6.0.0",
     "rehype-autolink-headings": "^7.0.0",
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
     "@biomejs/biome": "^1.9.0",
     "vitest": "^2.0.0",
     "@vitejs/plugin-react": "^4.0.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/user-event": "^14.0.0",
-    "jsdom": "^24.0.0",
-    "@playwright/test": "^1.45.0"
+    "jsdom": "^25.0.0",
+    "@playwright/test": "^1.48.0"
   }
 }
 ```
