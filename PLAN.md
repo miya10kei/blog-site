@@ -142,6 +142,7 @@ tech-blog/
 │           └── useSearch.ts
 ├── lib/
 │   ├── content.ts              # コンテンツ取得 (GitHub API)
+│   ├── gtag.ts                 # Google Analytics ヘルパー
 │   ├── mdx.ts                  # MDXパース・コンポーネント
 │   ├── reading-time.ts         # 読了時間計算
 │   ├── search.ts               # Fuse.js検索
@@ -234,7 +235,21 @@ export async function getPostList() {
     headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` },
     next: { revalidate: 3600 }
   })
-  return response.json()
+  const files = await response.json() as { name: string }[]
+
+  // 各記事のメタデータを取得
+  const posts = await Promise.all(
+    files
+      .filter((file) => file.name.endsWith('.mdx'))
+      .map(async (file) => {
+        const slug = file.name.replace('.mdx', '')
+        const meta = await getPostMeta(slug)
+        return { slug, ...meta }
+      })
+  )
+
+  // 日付で降順ソート
+  return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 }
 
 export async function getPostMeta(slug: string) {
@@ -706,6 +721,7 @@ export function ArticleJsonLd({ title, description, date, url, image }: ArticleJ
   url={`https://yourdomain.com/blog/${slug}`}
   image={`https://yourdomain.com/api/og?title=${encodeURIComponent(meta.title)}`}
 />
+```
 
 ### 6. パフォーマンス最適化
 - 画像最適化 (next/image)
@@ -1174,10 +1190,20 @@ Vercelの無料オブザーバビリティ機能でモニタリング。
 
 ```typescript
 // app/layout.tsx
+import type { Metadata } from 'next'
 import Script from 'next/script'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import { GoogleAnalytics } from '@/components/GoogleAnalytics'
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Tech Blog',
+    template: '%s | Tech Blog'
+  },
+  description: '技術ブログ・ポートフォリオサイト',
+  metadataBase: new URL('https://yourdomain.com')
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
