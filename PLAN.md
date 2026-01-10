@@ -15,6 +15,8 @@
 | コードハイライト | Shiki | VSCode同等のハイライト |
 | ダークモード | next-themes | 簡単実装、フラッシュ防止 |
 | 検索 | Pagefind | 静的サイト向け、高速 |
+| テスト | Vitest + React Testing Library | 高速、ESM対応、DX良好 |
+| E2Eテスト | Playwright | クロスブラウザ対応、信頼性高い |
 | ホスティング | Vercel | Next.js最適、自動デプロイ |
 
 ## ディレクトリ構造
@@ -67,6 +69,15 @@ tech-blog/
 │       └── project-1.mdx
 ├── lib/
 │   └── utils.ts              # ユーティリティ
+├── __tests__/                # テストファイル
+│   ├── components/           # コンポーネントテスト
+│   │   ├── PostCard.test.tsx
+│   │   └── Header.test.tsx
+│   ├── lib/                  # ユーティリティテスト
+│   │   └── utils.test.ts
+│   └── e2e/                  # E2Eテスト (Playwright)
+│       ├── blog.spec.ts
+│       └── navigation.spec.ts
 ├── .velite/                  # Velite生成ファイル（自動生成）
 ├── public/
 │   ├── images/               # 画像
@@ -74,6 +85,8 @@ tech-blog/
 ├── styles/
 │   └── globals.css           # グローバルスタイル
 ├── velite.config.ts          # Velite設定
+├── vitest.config.ts          # Vitest設定
+├── playwright.config.ts      # Playwright設定
 ├── next.config.js
 ├── tailwind.config.ts
 ├── tsconfig.json
@@ -158,6 +171,99 @@ published: true
 - 静的サイト生成 (SSG)
 - フォント最適化
 
+## テスト戦略 (TDD)
+
+### TDD開発サイクル
+```
+Red → Green → Refactor
+
+1. Red:    失敗するテストを書く
+2. Green:  テストが通る最小限のコードを書く
+3. Refactor: コードをリファクタリング（テストは通ったまま）
+```
+
+### テストの種類
+
+| 種類 | ツール | 対象 | 実行タイミング |
+|------|--------|------|----------------|
+| ユニットテスト | Vitest | 関数、ユーティリティ | 常時（watch mode） |
+| コンポーネントテスト | Vitest + RTL | Reactコンポーネント | 常時（watch mode） |
+| E2Eテスト | Playwright | ユーザーフロー全体 | CI/CD、リリース前 |
+
+### テスト方針
+
+#### 1. ユニットテスト
+- `lib/` 配下のユーティリティ関数
+- 日付フォーマット、スラッグ生成、タグ処理など
+- カバレッジ目標: 90%以上
+
+```typescript
+// 例: lib/utils.test.ts
+describe('formatDate', () => {
+  it('should format date to Japanese locale', () => {
+    expect(formatDate('2024-01-10')).toBe('2024年1月10日')
+  })
+})
+```
+
+#### 2. コンポーネントテスト
+- 重要なUIコンポーネント
+- ユーザーインタラクション
+- アクセシビリティ
+
+```typescript
+// 例: components/PostCard.test.tsx
+describe('PostCard', () => {
+  it('should render post title and description', () => {
+    render(<PostCard post={mockPost} />)
+    expect(screen.getByRole('heading')).toHaveTextContent('記事タイトル')
+  })
+
+  it('should navigate to post detail on click', async () => {
+    // ...
+  })
+})
+```
+
+#### 3. E2Eテスト
+- クリティカルなユーザーフロー
+- ページ遷移
+- 検索機能
+- ダークモード切替
+
+```typescript
+// 例: e2e/blog.spec.ts
+test('should navigate from blog list to post detail', async ({ page }) => {
+  await page.goto('/blog')
+  await page.click('text=最初の記事')
+  await expect(page).toHaveURL(/\/blog\/first-post/)
+})
+```
+
+### テストコマンド
+
+```bash
+# ユニット/コンポーネントテスト
+npm run test          # 一回実行
+npm run test:watch    # watch mode（TDD用）
+npm run test:coverage # カバレッジレポート
+
+# E2Eテスト
+npm run test:e2e      # ヘッドレス実行
+npm run test:e2e:ui   # UI mode（デバッグ用）
+```
+
+### CI/CD でのテスト
+
+```yaml
+# GitHub Actions
+- name: Run unit tests
+  run: npm run test:coverage
+
+- name: Run E2E tests
+  run: npm run test:e2e
+```
+
 ## デザイン方針
 
 ### カラーパレット
@@ -191,38 +297,45 @@ Dark Mode:
 2. TypeScript 設定
 3. Tailwind CSS 設定
 4. ESLint/Prettier 設定
-5. 基本的なディレクトリ構造作成
+5. **Vitest + React Testing Library 設定**
+6. **Playwright 設定**
+7. 基本的なディレクトリ構造作成
 
-### Phase 2: レイアウト・UI構築
-1. ヘッダー/フッター
-2. ナビゲーション
-3. ダークモード実装
-4. 基本UIコンポーネント
+### Phase 2: レイアウト・UI構築 (TDD)
+1. ヘッダーのテスト作成 → 実装
+2. フッターのテスト作成 → 実装
+3. ナビゲーションのテスト作成 → 実装
+4. ダークモードのテスト作成 → 実装
+5. 基本UIコンポーネントのテスト作成 → 実装
 
-### Phase 3: コンテンツ管理
+### Phase 3: コンテンツ管理 (TDD)
 1. Velite 設定
 2. MDX 設定
 3. コードハイライト (Shiki)
-4. サンプル記事作成
+4. コンテンツ取得ユーティリティのテスト作成 → 実装
+5. サンプル記事作成
 
-### Phase 4: ページ実装
-1. ホームページ
-2. ブログ一覧・詳細
-3. ポートフォリオ
-4. Aboutページ
-5. タグ/カテゴリページ
+### Phase 4: ページ実装 (TDD)
+1. ホームページのテスト作成 → 実装
+2. ブログ一覧のテスト作成 → 実装
+3. ブログ詳細のテスト作成 → 実装
+4. ポートフォリオのテスト作成 → 実装
+5. Aboutページのテスト作成 → 実装
+6. タグ/カテゴリページのテスト作成 → 実装
 
-### Phase 5: 機能追加
-1. 目次コンポーネント
-2. SNSシェアボタン
-3. 検索機能 (Pagefind)
-4. RSS フィード
+### Phase 5: 機能追加 (TDD)
+1. 目次コンポーネントのテスト作成 → 実装
+2. SNSシェアボタンのテスト作成 → 実装
+3. 検索機能のテスト作成 → 実装 (Pagefind)
+4. RSS フィードのテスト作成 → 実装
 
 ### Phase 6: 最適化・デプロイ
-1. SEO対策
-2. パフォーマンス最適化
-3. Vercel デプロイ設定
-4. カスタムドメイン設定（任意）
+1. E2Eテスト作成（クリティカルパス）
+2. SEO対策
+3. パフォーマンス最適化
+4. CI/CD パイプライン設定（テスト自動実行）
+5. Vercel デプロイ設定
+6. カスタムドメイン設定（任意）
 
 ## 使用ライブラリ
 
@@ -247,7 +360,14 @@ Dark Mode:
     "@types/react": "^18.0.0",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "vitest": "^2.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/user-event": "^14.0.0",
+    "jsdom": "^24.0.0",
+    "@playwright/test": "^1.45.0"
   }
 }
 ```
