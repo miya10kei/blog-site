@@ -17,6 +17,7 @@
 | 検索 | Pagefind | 静的サイト向け、高速 |
 | テスト | Vitest + React Testing Library | 高速、ESM対応、DX良好 |
 | E2Eテスト | Playwright | クロスブラウザ対応、信頼性高い |
+| Linter/Formatter | Biome | 超高速、ESLint+Prettier統合、Rust製 |
 | ホスティング | Vercel | Next.js最適、自動デプロイ |
 
 ## ディレクトリ構造
@@ -87,6 +88,7 @@ tech-blog/
 ├── velite.config.ts          # Velite設定
 ├── vitest.config.ts          # Vitest設定
 ├── playwright.config.ts      # Playwright設定
+├── biome.json                # Biome設定 (Linter + Formatter)
 ├── next.config.js
 ├── tailwind.config.ts
 ├── tsconfig.json
@@ -253,10 +255,27 @@ npm run test:e2e      # ヘッドレス実行
 npm run test:e2e:ui   # UI mode（デバッグ用）
 ```
 
+### Biome コマンド
+
+```bash
+# Lint + Format チェック
+npm run check         # lint + format チェック（CI用）
+
+# 自動修正
+npm run check:fix     # lint + format 自動修正
+
+# 個別実行
+npm run lint          # lintのみ
+npm run format        # formatのみ
+```
+
 ### CI/CD でのテスト
 
 ```yaml
 # GitHub Actions
+- name: Run Biome check
+  run: npm run check
+
 - name: Run unit tests
   run: npm run test:coverage
 
@@ -296,7 +315,7 @@ Dark Mode:
 1. Next.js プロジェクト作成
 2. TypeScript 設定
 3. Tailwind CSS 設定
-4. ESLint/Prettier 設定
+4. **Biome 設定 (Linter + Formatter)**
 5. **Vitest + React Testing Library 設定**
 6. **Playwright 設定**
 7. 基本的なディレクトリ構造作成
@@ -358,9 +377,7 @@ Dark Mode:
     "rehype-autolink-headings": "^7.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
-    "eslint": "^8.0.0",
-    "eslint-config-next": "^14.0.0",
-    "prettier": "^3.0.0",
+    "@biomejs/biome": "^1.9.0",
     "vitest": "^2.0.0",
     "@vitejs/plugin-react": "^4.0.0",
     "@testing-library/react": "^16.0.0",
