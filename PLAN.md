@@ -44,7 +44,7 @@
 3. キャッシュあり → 即座にレスポンス
 4. キャッシュなし/期限切れ → ISRでバックグラウンド再生成
    └── GitHub Raw URL から MDX を取得
-   └── next-mdx-remote でパース
+   └── next-mdx-remote-client でパース
    └── HTMLを生成してキャッシュ更新
 ```
 
@@ -55,7 +55,7 @@
 | フレームワーク | Next.js 15 (App Router) | Turbopack標準、React 19対応、最新 |
 | 言語 | TypeScript | 型安全、開発体験向上 |
 | スタイリング | Tailwind CSS v4 | Oxide Engine (5x高速)、Zero config |
-| マークダウン | MDX + next-mdx-remote | ランタイムMDX処理、リモートコンテンツ対応 |
+| マークダウン | MDX + next-mdx-remote-client | 活発メンテ、MDX v3、React 19対応 |
 | コードハイライト | Shiki | VSCode同等のハイライト |
 | ダークモード | next-themes | 簡単実装、フラッシュ防止 |
 | 検索 | Pagefind | 静的サイト向け、高速 |
@@ -215,7 +215,7 @@ export async function getPostList() {
 
 ```typescript
 // app/blog/[slug]/page.tsx
-import { MDXRemote } from 'next-mdx-remote/rsc'
+import { MDXRemote } from 'next-mdx-remote-client/rsc'
 import { Suspense } from 'react'
 import { getPost } from '@/lib/content'
 import { mdxComponents } from '@/lib/mdx'
@@ -234,6 +234,22 @@ export default async function PostPage({ params }: { params: { slug: string } })
 
 // ISR: 1時間ごとに再生成
 export const revalidate = 3600
+```
+
+### next-mdx-remote-client の利点
+
+```typescript
+// 1. frontmatterをコンパイルなしで取得
+import { getFrontmatter } from 'next-mdx-remote-client/utils'
+
+const { frontmatter, strippedSource } = getFrontmatter<Frontmatter>(source)
+// → コンパイル前にメタデータを取得可能
+
+// 2. App Router専用のRSCコンポーネント
+import { MDXRemote } from 'next-mdx-remote-client/rsc'
+
+// 3. import/export文のサポート
+// MDXファイル内で import { Chart } from './Chart' が使用可能
 ```
 
 ### On-demand Revalidation
@@ -262,7 +278,7 @@ export async function POST(request: NextRequest) {
 
 ### セキュリティ注意事項
 
-⚠️ **next-mdx-remote のセキュリティ**
+⚠️ **next-mdx-remote-client のセキュリティ**
 
 MDXはJavaScriptにコンパイルされサーバーで実行される。
 
@@ -584,7 +600,7 @@ Dark Mode:
 
 ### Phase 3: コンテンツ管理 (TDD)
 1. GitHub API コンテンツ取得のテスト作成 → 実装
-2. next-mdx-remote 設定
+2. next-mdx-remote-client 設定
 3. コードハイライト (Shiki)
 4. ISR + CDNキャッシュ設定
 5. サンプル記事作成（コンテンツリポジトリ）
@@ -620,7 +636,7 @@ Dark Mode:
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "next-themes": "^0.4.0",
-    "next-mdx-remote": "^5.0.0",
+    "next-mdx-remote-client": "^2.0.0",
     "lucide-react": "^0.400.0"
   },
   "devDependencies": {
