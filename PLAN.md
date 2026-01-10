@@ -248,8 +248,10 @@ export async function getPostList() {
       })
   )
 
-  // 日付で降順ソート
-  return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  // 公開記事のみ、日付で降順ソート
+  return posts
+    .filter((post) => post.published)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 }
 
 export async function getPostMeta(slug: string) {
@@ -268,6 +270,10 @@ type Frontmatter = {
   published: boolean
 }
 ```
+
+> **パフォーマンス注意**: `getPostList` は記事数分のネットワークリクエストを発行します（N+1）。
+> `Promise.all` で並列化していますが、記事数が多い場合（100件以上）はレスポンスが遅くなる可能性があります。
+> 対策: GitHub APIのキャッシュ（1時間）と Vercel Edge Cache により、実際のリクエスト頻度は低く抑えられます。
 
 ```typescript
 // app/blog/[slug]/page.tsx
@@ -1197,12 +1203,43 @@ import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import { GoogleAnalytics } from '@/components/GoogleAnalytics'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://yourdomain.com'),
   title: {
     default: 'Tech Blog',
     template: '%s | Tech Blog'
   },
-  description: '技術ブログ・ポートフォリオサイト',
-  metadataBase: new URL('https://yourdomain.com')
+  description: '技術ブログ、個人ブログ、ポートフォリオ',
+  keywords: ['技術ブログ', 'プログラミング', 'Web開発'],
+  authors: [{ name: 'Your Name' }],
+  creator: 'Your Name',
+  openGraph: {
+    type: 'website',
+    locale: 'ja_JP',
+    url: 'https://yourdomain.com',
+    siteName: 'Tech Blog',
+    images: [{ url: '/og-default.png', width: 1200, height: 630 }]
+  },
+  twitter: {
+    card: 'summary_large_image',
+    creator: '@yourhandle'
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1
+    }
+  },
+  alternates: {
+    canonical: 'https://yourdomain.com',
+    types: {
+      'application/rss+xml': '/feed.xml'
+    }
+  }
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
