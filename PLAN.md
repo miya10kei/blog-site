@@ -123,8 +123,11 @@ tech-blog/
 │   │   ├── components/
 │   │   │   ├── PostCard.tsx
 │   │   │   ├── PostList.tsx
+│   │   │   ├── PostMeta.tsx          # 日付・読了時間
 │   │   │   ├── TableOfContents.tsx
-│   │   │   └── ShareButtons.tsx
+│   │   │   ├── ShareButtons.tsx
+│   │   │   ├── CodeBlock.tsx         # コピーボタン付き
+│   │   │   └── ContentImage.tsx      # 画像最適化
 │   │   ├── hooks/
 │   │   │   └── useTableOfContents.ts
 │   │   └── utils/
@@ -139,7 +142,9 @@ tech-blog/
 │           └── useSearch.ts
 ├── lib/
 │   ├── content.ts              # コンテンツ取得 (GitHub API)
-│   ├── mdx.ts                  # MDXパース
+│   ├── mdx.ts                  # MDXパース・コンポーネント
+│   ├── reading-time.ts         # 読了時間計算
+│   ├── search.ts               # Fuse.js検索
 │   └── utils.ts                # ユーティリティ
 ├── __tests__/
 │   ├── components/
@@ -739,6 +744,231 @@ export default function Loading() {
 export default function BlogLoading() {
   return <PostCardSkeleton />
 }
+```
+
+### 9. セキュリティヘッダー
+
+```typescript
+// next.config.ts
+import type { NextConfig } from 'next'
+
+const securityHeaders = [
+  {
+    key: 'X-DNS-Prefetch-Control',
+    value: 'on'
+  },
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload'
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'SAMEORIGIN'
+  },
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff'
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'origin-when-cross-origin'
+  },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=()'
+  }
+]
+
+const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: securityHeaders
+      }
+    ]
+  }
+}
+
+export default nextConfig
+```
+
+| ヘッダー | 効果 |
+|----------|------|
+| `Strict-Transport-Security` | HTTPS強制 |
+| `X-Frame-Options` | クリックジャッキング防止 |
+| `X-Content-Type-Options` | MIMEスニッフィング防止 |
+| `Referrer-Policy` | リファラー情報制御 |
+| `Permissions-Policy` | ブラウザ機能の制限 |
+
+### 10. 読了時間
+
+```typescript
+// lib/reading-time.ts
+const WORDS_PER_MINUTE = 400 // 日本語は文字数ベース
+
+export function calculateReadingTime(content: string): number {
+  // HTMLタグとコードブロックを除去
+  const text = content
+    .replace(/<[^>]*>/g, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`]*`/g, '')
+
+  // 日本語文字数をカウント
+  const charCount = text.replace(/\s/g, '').length
+  const minutes = Math.ceil(charCount / WORDS_PER_MINUTE)
+
+  return Math.max(1, minutes)
+}
+
+// 使用例
+export function formatReadingTime(minutes: number): string {
+  return `${minutes}分で読めます`
+}
+```
+
+```typescript
+// features/blog/components/PostMeta.tsx
+type Props = {
+  date: string
+  readingTime: number
+}
+
+export function PostMeta({ date, readingTime }: Props) {
+  return (
+    <div className="flex items-center gap-4 text-sm text-gray-500">
+      <time dateTime={date}>{formatDate(date)}</time>
+      <span>・</span>
+      <span>{readingTime}分で読めます</span>
+    </div>
+  )
+}
+```
+
+### 11. コードコピーボタン
+
+```typescript
+// features/blog/components/CodeBlock.tsx
+'use client'
+import { useState } from 'react'
+import { Check, Copy } from 'lucide-react'
+
+type Props = {
+  code: string
+  language?: string
+}
+
+export function CodeBlock({ code, language }: Props) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="relative group">
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 p-2 rounded-md bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label="コードをコピー"
+      >
+        {copied ? (
+          <Check className="w-4 h-4 text-green-400" />
+        ) : (
+          <Copy className="w-4 h-4 text-gray-300" />
+        )}
+      </button>
+      <pre className={`language-${language}`}>
+        <code>{code}</code>
+      </pre>
+    </div>
+  )
+}
+```
+
+```typescript
+// lib/mdx.ts - MDXコンポーネントに登録
+import { CodeBlock } from '@/features/blog/components/CodeBlock'
+
+export const mdxComponents = {
+  pre: ({ children, ...props }) => {
+    const code = children?.props?.children
+    const language = children?.props?.className?.replace('language-', '')
+    return <CodeBlock code={code} language={language} {...props} />
+  }
+}
+```
+
+### 12. コンテンツ画像の最適化
+
+GitHub Raw URL から取得した画像を next/image で最適化：
+
+```typescript
+// next.config.ts
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'raw.githubusercontent.com',
+        pathname: '/user/tech-blog-content/**'
+      }
+    ]
+  }
+}
+```
+
+```typescript
+// features/blog/components/ContentImage.tsx
+import Image from 'next/image'
+
+type Props = {
+  src: string
+  alt: string
+  caption?: string
+}
+
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/user/tech-blog-content/main'
+
+export function ContentImage({ src, alt, caption }: Props) {
+  // 相対パスをGitHub Raw URLに変換
+  const imageSrc = src.startsWith('http') ? src : `${GITHUB_RAW_BASE}${src}`
+
+  return (
+    <figure className="my-8">
+      <Image
+        src={imageSrc}
+        alt={alt}
+        width={800}
+        height={450}
+        className="rounded-lg"
+        sizes="(max-width: 768px) 100vw, 800px"
+      />
+      {caption && (
+        <figcaption className="mt-2 text-center text-sm text-gray-500">
+          {caption}
+        </figcaption>
+      )}
+    </figure>
+  )
+}
+```
+
+```typescript
+// lib/mdx.ts - MDXコンポーネントに登録
+import { ContentImage } from '@/features/blog/components/ContentImage'
+
+export const mdxComponents = {
+  img: ContentImage,
+  // ...
+}
+```
+
+**画像使用例 (MDX内):**
+```mdx
+![スクリーンショット](/images/blog/hello-world/screenshot.png)
 ```
 
 ## テスト戦略 (TDD)
