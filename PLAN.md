@@ -7,6 +7,7 @@
 ## リポジトリ構成
 
 コードとコンテンツを分離した2リポジトリ構成を採用する。
+コンテンツはランタイムで取得し、CDNでキャッシュする。
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -14,11 +15,13 @@
 │  - Next.js アプリケーションコード                            │
 │  - コンポーネント、スタイル、設定                            │
 │                                                             │
-│  └── content/ (Git Submodule)                               │
-│      └── tech-blog-content (コンテンツリポジトリ)            │
-│          - ブログ記事 (MDX)                                  │
-│          - ポートフォリオ (MDX)                              │
-│          - 画像アセット                                      │
+│         ↓ ランタイムで取得 (GitHub API)                     │
+│         ↓ CDNキャッシュ (Vercel Edge)                       │
+│                                                             │
+│  tech-blog-content (コンテンツリポジトリ)                    │
+│  - ブログ記事 (MDX)                                          │
+│  - ポートフォリオ (MDX)                                      │
+│  - 画像アセット                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -29,8 +32,21 @@
 
 ### メリット
 - コードと記事の関心を分離
-- 記事のみの変更でコードに影響しない
-- 記事リポジトリを別プロジェクトでも再利用可能
+- Submodule不要でシンプルな運用
+- 記事更新時に再デプロイ不要（ISRで自動反映）
+- CDNキャッシュで高速配信
+
+### コンテンツ取得フロー
+
+```
+1. ユーザーがページにアクセス
+2. Vercel Edge (CDN) がキャッシュを確認
+3. キャッシュあり → 即座にレスポンス
+4. キャッシュなし/期限切れ → ISRでバックグラウンド再生成
+   └── GitHub Raw URL から MDX を取得
+   └── next-mdx-remote でパース
+   └── HTMLを生成してキャッシュ更新
+```
 
 ## 技術スタック
 
@@ -39,7 +55,7 @@
 | フレームワーク | Next.js 14+ (App Router) | 最も人気、SSG対応、React エコシステム |
 | 言語 | TypeScript | 型安全、開発体験向上 |
 | スタイリング | Tailwind CSS | 高速開発、カスタマイズ性 |
-| マークダウン | MDX + Velite | 型安全なコンテンツ管理、活発にメンテナンス |
+| マークダウン | MDX + next-mdx-remote | ランタイムMDX処理、リモートコンテンツ対応 |
 | コードハイライト | Shiki | VSCode同等のハイライト |
 | ダークモード | next-themes | 簡単実装、フラッシュ防止 |
 | 検索 | Pagefind | 静的サイト向け、高速 |
@@ -91,13 +107,9 @@ tech-blog/
 │   │   └── ThemeToggle.tsx   # ダークモード切替
 │   └── search/
 │       └── SearchModal.tsx   # 検索モーダル
-├── content/                  # Git Submodule (tech-blog-content)
-│   ├── blog/                 # ブログ記事 (MDX)
-│   │   └── hello-world.mdx
-│   ├── projects/             # ポートフォリオ用
-│   │   └── project-1.mdx
-│   └── images/               # 記事用画像
 ├── lib/
+│   ├── content.ts            # コンテンツ取得 (GitHub API)
+│   ├── mdx.ts                # MDXパース (next-mdx-remote)
 │   └── utils.ts              # ユーティリティ
 ├── __tests__/                # テストファイル
 │   ├── components/           # コンポーネントテスト
@@ -108,20 +120,17 @@ tech-blog/
 │   └── e2e/                  # E2Eテスト (Playwright)
 │       ├── blog.spec.ts
 │       └── navigation.spec.ts
-├── .velite/                  # Velite生成ファイル（自動生成）
 ├── public/
 │   ├── images/               # 画像
 │   └── favicon.ico
 ├── styles/
 │   └── globals.css           # グローバルスタイル
-├── velite.config.ts          # Velite設定
 ├── vitest.config.ts          # Vitest設定
 ├── playwright.config.ts      # Playwright設定
 ├── biome.json                # Biome設定 (Linter + Formatter)
 ├── next.config.js
 ├── tailwind.config.ts
 ├── tsconfig.json
-├── .gitmodules               # Submodule設定
 └── package.json
 ```
 
@@ -148,44 +157,64 @@ tech-blog-content/
 └── README.md
 ```
 
-### Submodule 操作コマンド
+### コンテンツ取得の実装
 
-```bash
-# 初回クローン時（submodule含む）
-git clone --recursive <repo-url>
+```typescript
+// lib/content.ts
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/user/tech-blog-content/main'
 
-# 既存リポジトリにsubmoduleを追加
-git submodule add <content-repo-url> content
+export async function getPost(slug: string) {
+  const url = `${GITHUB_RAW_BASE}/blog/${slug}.mdx`
+  const response = await fetch(url, {
+    next: { revalidate: 3600 } // 1時間キャッシュ
+  })
+  return response.text()
+}
 
-# submoduleを最新に更新
-git submodule update --remote
-
-# 記事を更新後、メインリポジトリに反映
-cd content
-git pull origin main
-cd ..
-git add content
-git commit -m "Update content submodule"
+export async function getPostList() {
+  // GitHub API で記事一覧を取得
+  const url = 'https://api.github.com/repos/user/tech-blog-content/contents/blog'
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` },
+    next: { revalidate: 3600 }
+  })
+  return response.json()
+}
 ```
 
-### デプロイ連携 (Vercel)
+```typescript
+// app/blog/[slug]/page.tsx
+import { MDXRemote } from 'next-mdx-remote/rsc'
+import { getPost } from '@/lib/content'
 
-コンテンツリポジトリの更新時に自動でメインサイトを再ビルドする設定：
+export default async function PostPage({ params }: { params: { slug: string } }) {
+  const source = await getPost(params.slug)
 
-```yaml
-# tech-blog-content/.github/workflows/trigger-deploy.yml
-name: Trigger Main Site Deploy
+  return (
+    <article>
+      <MDXRemote source={source} />
+    </article>
+  )
+}
 
-on:
-  push:
-    branches: [main]
+// ISR: 1時間ごとに再生成
+export const revalidate = 3600
+```
 
-jobs:
-  trigger:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Vercel Deploy
-        run: curl -X POST ${{ secrets.VERCEL_DEPLOY_HOOK }}
+### キャッシュ戦略
+
+| レイヤー | TTL | 役割 |
+|----------|-----|------|
+| Vercel Edge (CDN) | 1時間 | グローバル配信、最速 |
+| Next.js ISR | 1時間 | バックグラウンド再生成 |
+| GitHub Raw | - | 常に最新を返す |
+
+### 環境変数
+
+```bash
+# .env.local
+GITHUB_TOKEN=ghp_xxxx  # GitHub Personal Access Token (任意)
+CONTENT_REPO=user/tech-blog-content
 ```
 
 ## ページ構成
@@ -411,7 +440,7 @@ Dark Mode:
 4. **Biome 設定 (Linter + Formatter)**
 5. **Vitest + React Testing Library 設定**
 6. **Playwright 設定**
-7. **コンテンツリポジトリ作成 + Git Submodule 設定**
+7. **コンテンツリポジトリ作成 (tech-blog-content)**
 8. 基本的なディレクトリ構造作成
 
 ### Phase 2: レイアウト・UI構築 (TDD)
@@ -422,11 +451,11 @@ Dark Mode:
 5. 基本UIコンポーネントのテスト作成 → 実装
 
 ### Phase 3: コンテンツ管理 (TDD)
-1. Velite 設定
-2. MDX 設定
+1. GitHub API コンテンツ取得のテスト作成 → 実装
+2. next-mdx-remote 設定
 3. コードハイライト (Shiki)
-4. コンテンツ取得ユーティリティのテスト作成 → 実装
-5. サンプル記事作成
+4. ISR + CDNキャッシュ設定
+5. サンプル記事作成（コンテンツリポジトリ）
 
 ### Phase 4: ページ実装 (TDD)
 1. ホームページのテスト作成 → 実装
@@ -459,13 +488,13 @@ Dark Mode:
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "next-themes": "^0.2.0",
+    "next-mdx-remote": "^5.0.0",
     "lucide-react": "^0.300.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
     "tailwindcss": "^3.4.0",
     "@tailwindcss/typography": "^0.5.0",
-    "velite": "^0.2.0",
     "shiki": "^1.0.0",
     "rehype-slug": "^6.0.0",
     "rehype-autolink-headings": "^7.0.0",
