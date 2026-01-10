@@ -99,19 +99,25 @@ tech-blog/
 │   │       └── [tag]/
 │   │           └── page.tsx    # タグ別記事
 │   ├── api/
-│   │   └── revalidate/
-│   │       └── route.ts        # On-demand Revalidation
-│   └── feed.xml/
-│       └── route.ts            # RSS フィード
+│   │   ├── revalidate/
+│   │   │   └── route.ts        # On-demand Revalidation
+│   │   └── og/
+│   │       └── route.tsx       # OGP画像生成
+│   ├── feed.xml/
+│   │   └── route.ts            # RSS フィード
+│   ├── sitemap.ts              # サイトマップ
+│   └── robots.ts               # robots.txt
 ├── components/
 │   ├── layout/
 │   │   ├── Header.tsx
 │   │   ├── Footer.tsx
 │   │   └── Navigation.tsx
-│   └── ui/                     # 共通UIコンポーネント
-│       ├── Button.tsx
-│       ├── Card.tsx
-│       └── ThemeToggle.tsx
+│   ├── ui/                     # 共通UIコンポーネント
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   └── ThemeToggle.tsx
+│   ├── GoogleAnalytics.tsx     # GAページビュー
+│   └── JsonLd.tsx              # 構造化データ
 ├── features/                   # 機能別モジュール
 │   ├── blog/
 │   │   ├── components/
@@ -418,10 +424,264 @@ export function searchPosts(fuse: Fuse<Post>, query: string) {
 - 記事更新時に自動生成
 
 ### 5. SEO対策
-- メタタグ自動生成
-- OGP画像自動生成
-- sitemap.xml
-- robots.txt
+
+#### メタデータ設定 (Next.js 15 Metadata API)
+
+```typescript
+// app/layout.tsx
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  metadataBase: new URL('https://yourdomain.com'),
+  title: {
+    default: 'Tech Blog',
+    template: '%s | Tech Blog'
+  },
+  description: '技術ブログ、個人ブログ、ポートフォリオ',
+  keywords: ['技術ブログ', 'プログラミング', 'Web開発'],
+  authors: [{ name: 'Your Name' }],
+  creator: 'Your Name',
+  openGraph: {
+    type: 'website',
+    locale: 'ja_JP',
+    url: 'https://yourdomain.com',
+    siteName: 'Tech Blog',
+    images: [{ url: '/og-default.png', width: 1200, height: 630 }]
+  },
+  twitter: {
+    card: 'summary_large_image',
+    creator: '@yourhandle'
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1
+    }
+  },
+  alternates: {
+    canonical: 'https://yourdomain.com',
+    types: {
+      'application/rss+xml': '/feed.xml'
+    }
+  }
+}
+```
+
+#### 動的メタデータ (記事ページ)
+
+```typescript
+// app/blog/[slug]/page.tsx
+import type { Metadata } from 'next'
+import { getPost, getPostMeta } from '@/lib/content'
+
+type Props = { params: { slug: string } }
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const meta = await getPostMeta(params.slug)
+
+  return {
+    title: meta.title,
+    description: meta.description,
+    keywords: meta.tags,
+    openGraph: {
+      title: meta.title,
+      description: meta.description,
+      type: 'article',
+      publishedTime: meta.date,
+      authors: ['Your Name'],
+      tags: meta.tags,
+      images: [{
+        url: `/api/og?title=${encodeURIComponent(meta.title)}`,
+        width: 1200,
+        height: 630,
+        alt: meta.title
+      }]
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: meta.title,
+      description: meta.description
+    }
+  }
+}
+```
+
+#### OGP画像自動生成
+
+```typescript
+// app/api/og/route.tsx
+import { ImageResponse } from 'next/og'
+import { NextRequest } from 'next/server'
+
+export const runtime = 'edge'
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const title = searchParams.get('title') ?? 'Tech Blog'
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          height: '100%',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#0a0a0a',
+          padding: '40px'
+        }}
+      >
+        <div
+          style={{
+            fontSize: 60,
+            fontWeight: 'bold',
+            color: '#ededed',
+            textAlign: 'center',
+            lineHeight: 1.4
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontSize: 30,
+            color: '#888',
+            marginTop: '20px'
+          }}
+        >
+          Tech Blog
+        </div>
+      </div>
+    ),
+    { width: 1200, height: 630 }
+  )
+}
+```
+
+#### sitemap.xml
+
+```typescript
+// app/sitemap.ts
+import { MetadataRoute } from 'next'
+import { getPostList } from '@/lib/content'
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const posts = await getPostList()
+  const baseUrl = 'https://yourdomain.com'
+
+  const blogEntries = posts.map((post) => ({
+    url: `${baseUrl}/blog/${post.slug}`,
+    lastModified: new Date(post.date),
+    changeFrequency: 'monthly' as const,
+    priority: 0.8
+  }))
+
+  return [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 1
+    },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.9
+    },
+    {
+      url: `${baseUrl}/portfolio`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7
+    },
+    {
+      url: `${baseUrl}/about`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.5
+    },
+    ...blogEntries
+  ]
+}
+```
+
+#### robots.txt
+
+```typescript
+// app/robots.ts
+import { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: ['/api/', '/admin/']
+    },
+    sitemap: 'https://yourdomain.com/sitemap.xml'
+  }
+}
+```
+
+#### JSON-LD 構造化データ
+
+```typescript
+// components/JsonLd.tsx
+type ArticleJsonLdProps = {
+  title: string
+  description: string
+  date: string
+  url: string
+  image: string
+}
+
+export function ArticleJsonLd({ title, description, date, url, image }: ArticleJsonLdProps) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: title,
+    description: description,
+    image: image,
+    datePublished: date,
+    author: {
+      '@type': 'Person',
+      name: 'Your Name',
+      url: 'https://yourdomain.com/about'
+    },
+    publisher: {
+      '@type': 'Person',
+      name: 'Your Name'
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': url
+    }
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
+}
+
+// 使用例: app/blog/[slug]/page.tsx
+<ArticleJsonLd
+  title={meta.title}
+  description={meta.description}
+  date={meta.date}
+  url={`https://yourdomain.com/blog/${slug}`}
+  image={`https://yourdomain.com/api/og?title=${encodeURIComponent(meta.title)}`}
+/>
 
 ### 6. パフォーマンス最適化
 - 画像最適化 (next/image)
