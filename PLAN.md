@@ -154,10 +154,11 @@ tech-blog/
 ├── public/
 │   └── images/
 ├── app/globals.css             # Tailwind v4 (CSS内で設定)
+├── postcss.config.mjs          # Tailwind v4 PostCSS設定
 ├── vitest.config.ts
 ├── playwright.config.ts
 ├── biome.json
-├── next.config.ts              # .ts推奨
+├── next.config.ts              # セキュリティヘッダー + 画像設定
 └── package.json
 ```
 
@@ -212,6 +213,8 @@ tech-blog-content/
 
 ```typescript
 // lib/content.ts
+import { getFrontmatter } from 'next-mdx-remote-client/utils'
+
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/user/tech-blog-content/main'
 
 export async function getPost(slug: string) {
@@ -232,6 +235,22 @@ export async function getPostList() {
     next: { revalidate: 3600 }
   })
   return response.json()
+}
+
+export async function getPostMeta(slug: string) {
+  const source = await getPost(slug)
+  const { frontmatter } = getFrontmatter<Frontmatter>(source)
+  return frontmatter
+}
+
+// 型定義
+type Frontmatter = {
+  title: string
+  description: string
+  date: string
+  category: string
+  tags: string[]
+  published: boolean
 }
 ```
 
@@ -749,37 +768,28 @@ export default function BlogLoading() {
 ### 9. セキュリティヘッダー
 
 ```typescript
-// next.config.ts
+// next.config.ts (統合版)
 import type { NextConfig } from 'next'
 
 const securityHeaders = [
-  {
-    key: 'X-DNS-Prefetch-Control',
-    value: 'on'
-  },
-  {
-    key: 'Strict-Transport-Security',
-    value: 'max-age=63072000; includeSubDomains; preload'
-  },
-  {
-    key: 'X-Frame-Options',
-    value: 'SAMEORIGIN'
-  },
-  {
-    key: 'X-Content-Type-Options',
-    value: 'nosniff'
-  },
-  {
-    key: 'Referrer-Policy',
-    value: 'origin-when-cross-origin'
-  },
-  {
-    key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=()'
-  }
+  { key: 'X-DNS-Prefetch-Control', value: 'on' },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation()' }
 ]
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'raw.githubusercontent.com',
+        pathname: '/user/tech-blog-content/**'
+      }
+    ]
+  },
   async headers() {
     return [
       {
@@ -889,36 +899,25 @@ export function CodeBlock({ code, language }: Props) {
 ```
 
 ```typescript
-// lib/mdx.ts - MDXコンポーネントに登録
+// lib/mdx.ts - MDXコンポーネント (統合版)
 import { CodeBlock } from '@/features/blog/components/CodeBlock'
+import { ContentImage } from '@/features/blog/components/ContentImage'
 
 export const mdxComponents = {
   pre: ({ children, ...props }) => {
     const code = children?.props?.children
     const language = children?.props?.className?.replace('language-', '')
     return <CodeBlock code={code} language={language} {...props} />
-  }
+  },
+  img: ({ src, alt, ...props }) => (
+    <ContentImage src={src} alt={alt} {...props} />
+  )
 }
 ```
 
 ### 12. コンテンツ画像の最適化
 
-GitHub Raw URL から取得した画像を next/image で最適化：
-
-```typescript
-// next.config.ts
-const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'raw.githubusercontent.com',
-        pathname: '/user/tech-blog-content/**'
-      }
-    ]
-  }
-}
-```
+GitHub Raw URL から取得した画像を next/image で最適化（設定は `next.config.ts` 統合版を参照）：
 
 ```typescript
 // features/blog/components/ContentImage.tsx
@@ -953,16 +952,6 @@ export function ContentImage({ src, alt, caption }: Props) {
       )}
     </figure>
   )
-}
-```
-
-```typescript
-// lib/mdx.ts - MDXコンポーネントに登録
-import { ContentImage } from '@/features/blog/components/ContentImage'
-
-export const mdxComponents = {
-  img: ContentImage,
-  // ...
 }
 ```
 
@@ -1309,6 +1298,9 @@ Dark Mode:
 2. SNSシェアボタンのテスト作成 → 実装
 3. 検索機能のテスト作成 → 実装 (Fuse.js)
 4. RSS フィードのテスト作成 → 実装
+5. 読了時間のテスト作成 → 実装
+6. コードコピーボタンのテスト作成 → 実装
+7. コンテンツ画像コンポーネントのテスト作成 → 実装
 
 ### Phase 6: 最適化・デプロイ
 1. E2Eテスト作成（クリティカルパス）
