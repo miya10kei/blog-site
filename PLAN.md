@@ -63,7 +63,7 @@
 | E2Eテスト | Playwright | クロスブラウザ対応、非同期RSC対応 |
 | Linter/Formatter | Biome | 超高速、ESLint+Prettier統合、Rust製 |
 | アクセス解析 | Google Analytics 4 | 詳細なユーザー分析 |
-| オブザーバビリティ | Vercel Analytics + Speed Insights | Core Web Vitals、パフォーマンス監視 |
+| オブザーバビリティ | Vercel Analytics + Speed Insights | 無料、Core Web Vitals監視 |
 | ホスティング | Vercel | Next.js最適、Edge Runtime対応 |
 
 ### Next.js 15 の新機能活用
@@ -702,29 +702,18 @@ env:
 6. → Vercel本番デプロイ
 ```
 
-### Vercel Observability
+### Vercel Observability (無料機能のみ)
 
-Vercelの組み込みオブザーバビリティ機能でモニタリング。
+Vercelの無料オブザーバビリティ機能でモニタリング。
 
-| 機能 | 説明 | 料金 |
+| 機能 | 説明 | 制限 |
 |------|------|------|
-| **Insights** | Edge Request、Functions、ISR、画像最適化のメトリクス | 無料 |
-| **Logs** | ビルド・ランタイム・関数ログ | 無料 |
-| **Speed Insights** | Core Web Vitalsモニタリング | 無料 |
-| **Web Analytics** | プライバシーフレンドリーなアクセス解析 | 無料 (2,500イベント/月) |
-| **Observability Plus** | 詳細データ分析、長期保存 | 有料 |
+| **Insights** | Edge Request、Functions、ISR、画像最適化のメトリクス | 無制限 |
+| **Logs** | ビルド・ランタイム・関数ログ | 1時間保持 |
+| **Speed Insights** | Core Web Vitalsモニタリング | 無制限 |
+| **Web Analytics** | プライバシーフレンドリーなアクセス解析 | 2,500イベント/月 |
 
 **有効化方法:**
-
-```typescript
-// next.config.ts
-const nextConfig = {
-  experimental: {
-    // Speed Insights を有効化
-    webVitalsAttribution: ['CLS', 'LCP']
-  }
-}
-```
 
 ```typescript
 // app/layout.tsx
@@ -748,11 +737,6 @@ export default function RootLayout({ children }) {
 ```bash
 npm install @vercel/speed-insights @vercel/analytics
 ```
-
-**外部サービス連携 (Log Drains):**
-- Sentry: エラーモニタリング
-- Datadog: APM、ログ集約
-- Dash0: ログ・トレース統合
 
 ## デザイン方針
 
