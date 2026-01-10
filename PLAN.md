@@ -62,6 +62,8 @@
 | テスト | Vitest + React Testing Library | 高速、ESM対応、DX良好 |
 | E2Eテスト | Playwright | クロスブラウザ対応、非同期RSC対応 |
 | Linter/Formatter | Biome | 超高速、ESLint+Prettier統合、Rust製 |
+| アクセス解析 | Google Analytics 4 | 詳細なユーザー分析 |
+| オブザーバビリティ | Vercel Analytics + Speed Insights | Core Web Vitals、パフォーマンス監視 |
 | ホスティング | Vercel | Next.js最適、Edge Runtime対応 |
 
 ### Next.js 15 の新機能活用
@@ -311,6 +313,13 @@ const source = await getPost(sanitizedSlug) // GitHub Raw のみ
 # .env.local
 GITHUB_TOKEN=ghp_xxxx  # GitHub Personal Access Token (任意)
 CONTENT_REPO=user/tech-blog-content
+REVALIDATE_SECRET=your-secret-key  # On-demand Revalidation用
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX     # Google Analytics
+
+# Vercel デプロイ用 (GitHub Secrets)
+VERCEL_TOKEN=xxxx
+VERCEL_ORG_ID=xxxx
+VERCEL_PROJECT_ID=xxxx
 ```
 
 ## ページ構成
@@ -394,7 +403,82 @@ published: true
 - **Streaming** Suspenseによる段階的表示
 - **Edge Runtime** 低レイテンシ配信
 
-### 7. Error/Loading UI
+### 7. Google Analytics
+
+アクセス解析のためにGoogle Analytics 4 (GA4) を導入。
+
+```typescript
+// lib/gtag.ts
+export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GA_ID
+
+export const pageview = (url: string) => {
+  window.gtag('config', GA_TRACKING_ID!, {
+    page_path: url
+  })
+}
+
+export const event = (action: string, category: string, label: string, value?: number) => {
+  window.gtag('event', action, {
+    event_category: category,
+    event_label: label,
+    value: value
+  })
+}
+```
+
+```typescript
+// app/layout.tsx
+import Script from 'next/script'
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <head>
+        <Script
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+          `}
+        </Script>
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```typescript
+// components/Analytics.tsx - ページビュートラッキング
+'use client'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
+import { pageview } from '@/lib/gtag'
+
+export function Analytics() {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const url = pathname + searchParams.toString()
+    pageview(url)
+  }, [pathname, searchParams])
+
+  return null
+}
+```
+
+環境変数:
+```bash
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+```
+
+### 8. Error/Loading UI
 
 ```typescript
 // app/error.tsx - グローバルエラーUI
@@ -553,6 +637,123 @@ npm run format        # formatのみ
   run: npm run test:e2e
 ```
 
+### GitHub Release でデプロイ
+
+GitHubでリリースを作成したら自動でVercelにデプロイする。
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to Production
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: |
+          npm run check
+          npm run test:coverage
+          npm run test:e2e
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./
+
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+```
+
+**セットアップ手順:**
+1. Vercelダッシュボードで「Settings > Tokens」からトークンを取得
+2. プロジェクトの「Settings > General」からOrg IDとProject IDを取得
+3. GitHubリポジトリの「Settings > Secrets」に登録:
+   - `VERCEL_TOKEN`
+   - `VERCEL_ORG_ID`
+   - `VERCEL_PROJECT_ID`
+
+**リリースフロー:**
+```
+1. git tag v1.0.0
+2. git push origin v1.0.0
+3. GitHub上でRelease作成
+4. → GitHub Actions起動
+5. → テスト実行
+6. → Vercel本番デプロイ
+```
+
+### Vercel Observability
+
+Vercelの組み込みオブザーバビリティ機能でモニタリング。
+
+| 機能 | 説明 | 料金 |
+|------|------|------|
+| **Insights** | Edge Request、Functions、ISR、画像最適化のメトリクス | 無料 |
+| **Logs** | ビルド・ランタイム・関数ログ | 無料 |
+| **Speed Insights** | Core Web Vitalsモニタリング | 無料 |
+| **Web Analytics** | プライバシーフレンドリーなアクセス解析 | 無料 (2,500イベント/月) |
+| **Observability Plus** | 詳細データ分析、長期保存 | 有料 |
+
+**有効化方法:**
+
+```typescript
+// next.config.ts
+const nextConfig = {
+  experimental: {
+    // Speed Insights を有効化
+    webVitalsAttribution: ['CLS', 'LCP']
+  }
+}
+```
+
+```typescript
+// app/layout.tsx
+import { SpeedInsights } from '@vercel/speed-insights/next'
+import { Analytics } from '@vercel/analytics/react'
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <SpeedInsights />
+        <Analytics />
+      </body>
+    </html>
+  )
+}
+```
+
+**依存関係追加:**
+```bash
+npm install @vercel/speed-insights @vercel/analytics
+```
+
+**外部サービス連携 (Log Drains):**
+- Sentry: エラーモニタリング
+- Datadog: APM、ログ集約
+- Dash0: ログ・トレース統合
+
 ## デザイン方針
 
 ### カラーパレット
@@ -623,9 +824,12 @@ Dark Mode:
 1. E2Eテスト作成（クリティカルパス）
 2. SEO対策
 3. パフォーマンス最適化
-4. CI/CD パイプライン設定（テスト自動実行）
-5. Vercel デプロイ設定
-6. カスタムドメイン設定（任意）
+4. Google Analytics 設定
+5. Vercel Analytics / Speed Insights 設定
+6. CI/CD パイプライン設定（テスト自動実行）
+7. GitHub Release デプロイ設定
+8. Vercel デプロイ設定
+9. カスタムドメイン設定（任意）
 
 ## 使用ライブラリ
 
@@ -637,7 +841,9 @@ Dark Mode:
     "react-dom": "^19.0.0",
     "next-themes": "^0.4.0",
     "next-mdx-remote-client": "^2.0.0",
-    "lucide-react": "^0.400.0"
+    "lucide-react": "^0.400.0",
+    "@vercel/speed-insights": "^1.0.0",
+    "@vercel/analytics": "^1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
