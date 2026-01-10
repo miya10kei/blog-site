@@ -11,7 +11,7 @@
 | フレームワーク | Next.js 14+ (App Router) | 最も人気、SSG対応、React エコシステム |
 | 言語 | TypeScript | 型安全、開発体験向上 |
 | スタイリング | Tailwind CSS | 高速開発、カスタマイズ性 |
-| マークダウン | MDX + Contentlayer | 型安全なコンテンツ管理 |
+| マークダウン | MDX + Velite | 型安全なコンテンツ管理、活発にメンテナンス |
 | コードハイライト | Shiki | VSCode同等のハイライト |
 | ダークモード | next-themes | 簡単実装、フラッシュ防止 |
 | 検索 | Pagefind | 静的サイト向け、高速 |
@@ -66,14 +66,14 @@ tech-blog/
 │   └── projects/             # ポートフォリオ用
 │       └── project-1.mdx
 ├── lib/
-│   ├── contentlayer.ts       # コンテンツ設定
 │   └── utils.ts              # ユーティリティ
+├── .velite/                  # Velite生成ファイル（自動生成）
 ├── public/
 │   ├── images/               # 画像
 │   └── favicon.ico
 ├── styles/
 │   └── globals.css           # グローバルスタイル
-├── contentlayer.config.ts    # Contentlayer設定
+├── velite.config.ts          # Velite設定
 ├── next.config.js
 ├── tailwind.config.ts
 ├── tsconfig.json
@@ -200,7 +200,7 @@ Dark Mode:
 4. 基本UIコンポーネント
 
 ### Phase 3: コンテンツ管理
-1. Contentlayer 設定
+1. Velite 設定
 2. MDX 設定
 3. コードハイライト (Shiki)
 4. サンプル記事作成
@@ -232,8 +232,6 @@ Dark Mode:
     "next": "^14.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "contentlayer": "^0.3.0",
-    "next-contentlayer": "^0.3.0",
     "next-themes": "^0.2.0",
     "lucide-react": "^0.300.0"
   },
@@ -241,6 +239,7 @@ Dark Mode:
     "typescript": "^5.0.0",
     "tailwindcss": "^3.4.0",
     "@tailwindcss/typography": "^0.5.0",
+    "velite": "^0.2.0",
     "shiki": "^1.0.0",
     "rehype-slug": "^6.0.0",
     "rehype-autolink-headings": "^7.0.0",
