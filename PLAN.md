@@ -4,6 +4,34 @@
 
 技術ブログ、個人ブログ、ポートフォリオを兼ねたモダンなブログサイトを構築する。
 
+## リポジトリ構成
+
+コードとコンテンツを分離した2リポジトリ構成を採用する。
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  tech-blog (メインリポジトリ)                                │
+│  - Next.js アプリケーションコード                            │
+│  - コンポーネント、スタイル、設定                            │
+│                                                             │
+│  └── content/ (Git Submodule)                               │
+│      └── tech-blog-content (コンテンツリポジトリ)            │
+│          - ブログ記事 (MDX)                                  │
+│          - ポートフォリオ (MDX)                              │
+│          - 画像アセット                                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| リポジトリ | 役割 | 更新頻度 |
+|------------|------|----------|
+| `tech-blog` | アプリケーションコード | 機能追加時 |
+| `tech-blog-content` | 記事・コンテンツ | 記事投稿時 |
+
+### メリット
+- コードと記事の関心を分離
+- 記事のみの変更でコードに影響しない
+- 記事リポジトリを別プロジェクトでも再利用可能
+
 ## 技術スタック
 
 | カテゴリ | 技術 | 理由 |
@@ -63,11 +91,12 @@ tech-blog/
 │   │   └── ThemeToggle.tsx   # ダークモード切替
 │   └── search/
 │       └── SearchModal.tsx   # 検索モーダル
-├── content/
+├── content/                  # Git Submodule (tech-blog-content)
 │   ├── blog/                 # ブログ記事 (MDX)
 │   │   └── hello-world.mdx
-│   └── projects/             # ポートフォリオ用
-│       └── project-1.mdx
+│   ├── projects/             # ポートフォリオ用
+│   │   └── project-1.mdx
+│   └── images/               # 記事用画像
 ├── lib/
 │   └── utils.ts              # ユーティリティ
 ├── __tests__/                # テストファイル
@@ -92,7 +121,71 @@ tech-blog/
 ├── next.config.js
 ├── tailwind.config.ts
 ├── tsconfig.json
+├── .gitmodules               # Submodule設定
 └── package.json
+```
+
+### コンテンツリポジトリ構造 (tech-blog-content)
+
+```
+tech-blog-content/
+├── blog/
+│   ├── 2024/
+│   │   ├── hello-world.mdx
+│   │   └── getting-started-nextjs.mdx
+│   └── 2025/
+│       └── new-year-goals.mdx
+├── projects/
+│   ├── project-1.mdx
+│   └── project-2.mdx
+├── images/
+│   ├── blog/
+│   │   └── hello-world/
+│   │       └── cover.png
+│   └── projects/
+│       └── project-1/
+│           └── screenshot.png
+└── README.md
+```
+
+### Submodule 操作コマンド
+
+```bash
+# 初回クローン時（submodule含む）
+git clone --recursive <repo-url>
+
+# 既存リポジトリにsubmoduleを追加
+git submodule add <content-repo-url> content
+
+# submoduleを最新に更新
+git submodule update --remote
+
+# 記事を更新後、メインリポジトリに反映
+cd content
+git pull origin main
+cd ..
+git add content
+git commit -m "Update content submodule"
+```
+
+### デプロイ連携 (Vercel)
+
+コンテンツリポジトリの更新時に自動でメインサイトを再ビルドする設定：
+
+```yaml
+# tech-blog-content/.github/workflows/trigger-deploy.yml
+name: Trigger Main Site Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Deploy
+        run: curl -X POST ${{ secrets.VERCEL_DEPLOY_HOOK }}
 ```
 
 ## ページ構成
@@ -318,7 +411,8 @@ Dark Mode:
 4. **Biome 設定 (Linter + Formatter)**
 5. **Vitest + React Testing Library 設定**
 6. **Playwright 設定**
-7. 基本的なディレクトリ構造作成
+7. **コンテンツリポジトリ作成 + Git Submodule 設定**
+8. 基本的なディレクトリ構造作成
 
 ### Phase 2: レイアウト・UI構築 (TDD)
 1. ヘッダーのテスト作成 → 実装
