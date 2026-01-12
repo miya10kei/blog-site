@@ -93,7 +93,8 @@ tech-blog/
 │   │   │   ├── page.tsx        # ブログ一覧
 │   │   │   ├── loading.tsx     # ブログローディング
 │   │   │   └── [slug]/
-│   │   │       └── page.tsx    # 記事詳細
+│   │   │       ├── page.tsx    # 記事詳細
+│   │   │       └── not-found.tsx # 記事404ページ
 │   │   ├── portfolio/
 │   │   │   └── page.tsx        # ポートフォリオ
 │   │   └── tags/
@@ -254,6 +255,20 @@ export const OG_IMAGE_CONFIG = {
   width: 1200,
   height: 630,
   maxTitleLength: 100
+} as const
+
+// WCAG AA準拠 (コントラスト比 4.5:1 以上)
+export const A11Y_COLORS = {
+  light: {
+    text: '#1a1a1a',        // on #ffffff = 16.1:1 ✓
+    textMuted: '#525252',   // on #ffffff = 7.5:1 ✓
+    primary: '#2563eb',     // on #ffffff = 4.5:1 ✓
+  },
+  dark: {
+    text: '#ededed',        // on #0a0a0a = 15.3:1 ✓
+    textMuted: '#a3a3a3',   // on #0a0a0a = 7.2:1 ✓
+    primary: '#60a5fa',     // on #0a0a0a = 6.8:1 ✓
+  }
 } as const
 ```
 
@@ -983,7 +998,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https://raw.githubusercontent.com https://*.googletagmanager.com",
       "font-src 'self'",
-      "connect-src 'self' https://www.google-analytics.com https://vitals.vercel-insights.com https://va.vercel-scripts.com",
+      "connect-src 'self' https://www.google-analytics.com https://vitals.vercel-insights.com https://va.vercel-scripts.com https://*.ingest.sentry.io",
       "frame-ancestors 'none'"
     ].join('; ')
   }
@@ -1372,22 +1387,8 @@ export function TableOfContents({ headings }: Props) {
 
 #### カラーコントラスト
 
-```typescript
-// lib/constants.ts に追加
-export const A11Y_COLORS = {
-  // WCAG AA準拠 (コントラスト比 4.5:1 以上)
-  light: {
-    text: '#1a1a1a',        // on #ffffff = 16.1:1 ✓
-    textMuted: '#525252',   // on #ffffff = 7.5:1 ✓
-    primary: '#2563eb',     // on #ffffff = 4.5:1 ✓
-  },
-  dark: {
-    text: '#ededed',        // on #0a0a0a = 15.3:1 ✓
-    textMuted: '#a3a3a3',   // on #0a0a0a = 7.2:1 ✓
-    primary: '#60a5fa',     // on #0a0a0a = 6.8:1 ✓
-  }
-} as const
-```
+`lib/constants.ts` の `A11Y_COLORS` を参照（「定数の一元管理」セクションで定義済み）。
+WCAG AA準拠のコントラスト比 4.5:1 以上を確保。
 
 #### チェックリスト
 
@@ -1790,9 +1791,12 @@ Vercelの無料オブザーバビリティ機能でモニタリング。
 // app/layout.tsx
 import type { Metadata } from 'next'
 import Script from 'next/script'
+import { ThemeProvider } from 'next-themes'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import { GoogleAnalytics } from '@/components/GoogleAnalytics'
+import { SkipLink } from '@/components/layout/SkipLink'
+import { CookieConsent } from '@/components/CookieConsent'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://yourdomain.com'),
@@ -1846,16 +1850,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
+
+            // デフォルトで拒否（同意後に有効化）- Consent Mode v2
+            gtag('consent', 'default', {
+              analytics_storage: 'denied'
+            });
+
+            // 既に同意済みの場合は有効化
+            if (localStorage.getItem('cookie-consent') === 'accepted') {
+              gtag('consent', 'update', { analytics_storage: 'granted' });
+            }
+
             gtag('js', new Date());
             gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
           `}
         </Script>
       </head>
       <body>
-        {children}
-        <GoogleAnalytics />
-        <SpeedInsights />
-        <VercelAnalytics />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <SkipLink />
+          {children}
+          <CookieConsent />
+          <GoogleAnalytics />
+          <SpeedInsights />
+          <VercelAnalytics />
+        </ThemeProvider>
       </body>
     </html>
   )
