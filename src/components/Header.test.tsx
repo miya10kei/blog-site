@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header'
 describe('Header', () => {
 	it('should render site name', () => {
 		render(<Header />)
-		expect(screen.getByRole('link', { name: /tech blog/i })).toBeInTheDocument()
+		expect(screen.getByRole('link', { name: /miya10kei\.dev/i })).toBeInTheDocument()
 	})
 
 	it('should have navigation', () => {
