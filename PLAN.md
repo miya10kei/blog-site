@@ -218,44 +218,90 @@ import { getFrontmatter } from 'next-mdx-remote-client/utils'
 
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/user/tech-blog-content/main'
 
-export async function getPost(slug: string) {
+export async function getPost(slug: string): Promise<string | null> {
   // セキュリティ: slugをサニタイズ
   const sanitizedSlug = slug.replace(/[^a-zA-Z0-9-]/g, '')
   const url = `${GITHUB_RAW_BASE}/blog/${sanitizedSlug}.mdx`
   const response = await fetch(url, {
     next: { revalidate: 3600 } // 1時間キャッシュ
   })
+
+  // 404の場合はnullを返す
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null
+    }
+    throw new Error(`Failed to fetch post: ${response.status}`)
+  }
+
   return response.text()
 }
 
 export async function getPostList() {
   // GitHub API で記事一覧を取得
   const url = 'https://api.github.com/repos/user/tech-blog-content/contents/blog'
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` },
-    next: { revalidate: 3600 }
-  })
-  const files = await response.json() as { name: string }[]
 
-  // 各記事のメタデータを取得
-  const posts = await Promise.all(
-    files
-      .filter((file) => file.name.endsWith('.mdx'))
-      .map(async (file) => {
-        const slug = file.name.replace('.mdx', '')
-        const meta = await getPostMeta(slug)
-        return { slug, ...meta }
-      })
-  )
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` },
+      next: { revalidate: 3600 }
+    })
 
-  // 公開記事のみ、日付で降順ソート
-  return posts
-    .filter((post) => post.published)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    // エラーハンドリング
+    if (!response.ok) {
+      if (response.status === 403) {
+        console.error('GitHub API rate limit exceeded')
+        throw new Error('GitHub API rate limit exceeded. Please try again later.')
+      }
+      if (response.status === 404) {
+        console.error('Content repository not found')
+        return []
+      }
+      throw new Error(`GitHub API error: ${response.status}`)
+    }
+
+    const files = await response.json() as { name: string }[]
+
+    // 各記事のメタデータを取得（エラーは個別にハンドル）
+    const postsResults = await Promise.allSettled(
+      files
+        .filter((file) => file.name.endsWith('.mdx'))
+        .map(async (file) => {
+          const slug = file.name.replace('.mdx', '')
+          const meta = await getPostMeta(slug)
+          return { slug, ...meta }
+        })
+    )
+
+    // 成功した記事のみ抽出
+    const posts = postsResults
+      .filter((result): result is PromiseFulfilledResult<Post> => result.status === 'fulfilled')
+      .map((result) => result.value)
+
+    // 失敗した記事をログ出力
+    postsResults
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .forEach((result) => console.error('Failed to fetch post metadata:', result.reason))
+
+    // 公開記事のみ、日付で降順ソート
+    return posts
+      .filter((post) => post.published)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  } catch (error) {
+    console.error('Failed to fetch post list:', error)
+    // エラー時は空配列を返す（サイトは動作継続）
+    return []
+  }
 }
 
-export async function getPostMeta(slug: string) {
+type Post = Frontmatter & { slug: string }
+
+export async function getPostMeta(slug: string): Promise<Frontmatter> {
   const source = await getPost(slug)
+  if (source === null) {
+    throw new Error(`Post not found: ${slug}`)
+  }
   const { frontmatter } = getFrontmatter<Frontmatter>(source)
   return frontmatter
 }
@@ -279,11 +325,17 @@ type Frontmatter = {
 // app/blog/[slug]/page.tsx
 import { MDXRemote } from 'next-mdx-remote-client/rsc'
 import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
 import { getPost } from '@/lib/content'
 import { mdxComponents } from '@/lib/mdx'
 
 export default async function PostPage({ params }: { params: { slug: string } }) {
   const source = await getPost(params.slug)
+
+  // 記事が存在しない場合は404
+  if (source === null) {
+    notFound()
+  }
 
   return (
     <article>
@@ -296,6 +348,23 @@ export default async function PostPage({ params }: { params: { slug: string } })
 
 // ISR: 1時間ごとに再生成
 export const revalidate = 3600
+```
+
+```typescript
+// app/blog/[slug]/not-found.tsx
+export default function NotFound() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh]">
+      <h1 className="text-4xl font-bold mb-4">404</h1>
+      <p className="text-gray-600 dark:text-gray-400 mb-8">
+        お探しの記事は見つかりませんでした
+      </p>
+      <a href="/blog" className="text-primary hover:underline">
+        ブログ一覧に戻る
+      </a>
+    </div>
+  )
+}
 ```
 
 ### next-mdx-remote-client の利点
@@ -799,7 +868,19 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation()' }
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation()' },
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://va.vercel-scripts.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https://raw.githubusercontent.com https://*.googletagmanager.com",
+      "font-src 'self'",
+      "connect-src 'self' https://www.google-analytics.com https://vitals.vercel-insights.com https://va.vercel-scripts.com",
+      "frame-ancestors 'none'"
+    ].join('; ')
+  }
 ]
 
 const nextConfig: NextConfig = {
@@ -832,6 +913,7 @@ export default nextConfig
 | `X-Content-Type-Options` | MIMEスニッフィング防止 |
 | `Referrer-Policy` | リファラー情報制御 |
 | `Permissions-Policy` | ブラウザ機能の制限 |
+| `Content-Security-Policy` | XSS攻撃防止、許可されたリソースのみ読み込み |
 
 ### 10. 読了時間
 
