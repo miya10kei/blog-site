@@ -84,8 +84,10 @@ tech-blog/
 │   ├── not-found.tsx           # 404ページ
 │   ├── (marketing)/            # Route Group: マーケティング
 │   │   ├── page.tsx            # ホームページ
-│   │   └── about/
-│   │       └── page.tsx        # 自己紹介
+│   │   ├── about/
+│   │   │   └── page.tsx        # 自己紹介
+│   │   └── privacy/
+│   │       └── page.tsx        # プライバシーポリシー
 │   ├── (content)/              # Route Group: コンテンツ
 │   │   ├── blog/
 │   │   │   ├── page.tsx        # ブログ一覧
@@ -111,11 +113,13 @@ tech-blog/
 │   ├── layout/
 │   │   ├── Header.tsx
 │   │   ├── Footer.tsx
-│   │   └── Navigation.tsx
+│   │   ├── Navigation.tsx
+│   │   └── SkipLink.tsx        # アクセシビリティ
 │   ├── ui/                     # 共通UIコンポーネント
 │   │   ├── Button.tsx
 │   │   ├── Card.tsx
 │   │   └── ThemeToggle.tsx
+│   ├── CookieConsent.tsx       # Cookie同意バナー
 │   ├── GoogleAnalytics.tsx     # GAページビュー
 │   └── JsonLd.tsx              # 構造化データ
 ├── features/                   # 機能別モジュール
@@ -1292,6 +1296,282 @@ const nextConfig: NextConfig = {
 ```bash
 # バンドル分析実行
 ANALYZE=true npm run build
+```
+
+### 16. アクセシビリティ (a11y)
+
+WCAG 2.1 Level AA準拠を目指し、アクセシブルなサイトを構築。
+
+#### スキップリンク
+
+```typescript
+// components/layout/SkipLink.tsx
+export function SkipLink() {
+  return (
+    <a
+      href="#main-content"
+      className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded"
+    >
+      メインコンテンツへスキップ
+    </a>
+  )
+}
+
+// app/layout.tsx で使用
+<body>
+  <SkipLink />
+  <Header />
+  <main id="main-content" tabIndex={-1}>
+    {children}
+  </main>
+  <Footer />
+</body>
+```
+
+#### フォーカス管理
+
+```css
+/* app/globals.css */
+@import "tailwindcss";
+
+/* フォーカスリングの統一 */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* キーボードフォーカス時のみ表示 */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+```
+
+#### ARIA属性
+
+```typescript
+// features/blog/components/TableOfContents.tsx
+export function TableOfContents({ headings }: Props) {
+  return (
+    <nav aria-labelledby="toc-heading">
+      <h2 id="toc-heading" className="sr-only">目次</h2>
+      <ul role="list">
+        {headings.map((heading) => (
+          <li key={heading.id}>
+            <a href={`#${heading.id}`} aria-label={`${heading.text}へジャンプ`}>
+              {heading.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+```
+
+#### カラーコントラスト
+
+```typescript
+// lib/constants.ts に追加
+export const A11Y_COLORS = {
+  // WCAG AA準拠 (コントラスト比 4.5:1 以上)
+  light: {
+    text: '#1a1a1a',        // on #ffffff = 16.1:1 ✓
+    textMuted: '#525252',   // on #ffffff = 7.5:1 ✓
+    primary: '#2563eb',     // on #ffffff = 4.5:1 ✓
+  },
+  dark: {
+    text: '#ededed',        // on #0a0a0a = 15.3:1 ✓
+    textMuted: '#a3a3a3',   // on #0a0a0a = 7.2:1 ✓
+    primary: '#60a5fa',     // on #0a0a0a = 6.8:1 ✓
+  }
+} as const
+```
+
+#### チェックリスト
+
+| 項目 | 対応 |
+|------|------|
+| スキップリンク | `<SkipLink />` コンポーネント |
+| フォーカス表示 | `:focus-visible` スタイル |
+| 画像alt属性 | `ContentImage` で必須化 |
+| 色のコントラスト | WCAG AA準拠カラー |
+| キーボード操作 | Tab/Enter/Escapeサポート |
+| スクリーンリーダー | 適切なARIA属性 |
+| モーション軽減 | `prefers-reduced-motion` 対応 |
+
+### 17. コスト上限
+
+各サービスの無料枠と超過時の挙動を明確化。
+
+| サービス | 無料枠 | 超過時 | 対策 |
+|----------|--------|--------|------|
+| **Vercel** | 100GB帯域/月 | $0.15/GB | 画像最適化でサイズ削減 |
+| **Vercel Functions** | 100GB-hours/月 | $0.18/GB-hour | Edge Runtimeで軽量化 |
+| **GitHub API** | 5,000 req/時 (認証時) | 待機のみ | 1時間キャッシュで削減 |
+| **GitHub Raw** | 無制限 | - | - |
+| **Sentry** | 5,000 エラー/月 | 制限 | サンプリング10%で節約 |
+| **GA4** | 無制限 | - | - |
+| **Vercel Analytics** | 2,500 イベント/月 | 制限 | GA4をメインで使用 |
+
+#### 想定アクセス数での試算
+
+```
+月間PV: 10,000 の場合
+
+- 帯域: 約2GB（200KB/ページ × 10,000）→ 無料枠内 ✓
+- GitHub API: 約300 req/日（ISRで大幅削減）→ 無料枠内 ✓
+- Sentry: 約100 エラー/月（10%サンプリング）→ 無料枠内 ✓
+```
+
+#### 超過アラート設定
+
+```typescript
+// Vercel Dashboard で設定
+// Project Settings > Notifications > Usage Alerts
+// - 帯域 80GB で通知（80%時点）
+// - Functions 80GB-hours で通知
+```
+
+### 18. 法的要件
+
+日本向けサイトとして必要な法的対応。
+
+#### Cookie同意バナー
+
+Google Analytics使用のため、Cookie同意を取得（改正電気通信事業法対応）。
+
+```typescript
+// components/CookieConsent.tsx
+'use client'
+import { useState, useEffect } from 'react'
+
+export function CookieConsent() {
+  const [showBanner, setShowBanner] = useState(false)
+
+  useEffect(() => {
+    const consent = localStorage.getItem('cookie-consent')
+    if (!consent) setShowBanner(true)
+  }, [])
+
+  const handleAccept = () => {
+    localStorage.setItem('cookie-consent', 'accepted')
+    setShowBanner(false)
+    // GA有効化
+    window.gtag?.('consent', 'update', {
+      analytics_storage: 'granted'
+    })
+  }
+
+  const handleDecline = () => {
+    localStorage.setItem('cookie-consent', 'declined')
+    setShowBanner(false)
+  }
+
+  if (!showBanner) return null
+
+  return (
+    <div
+      role="dialog"
+      aria-labelledby="cookie-title"
+      className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t p-4 shadow-lg z-50"
+    >
+      <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p id="cookie-title" className="text-sm">
+          このサイトではアクセス解析のためCookieを使用しています。
+          <a href="/privacy" className="underline ml-1">詳細</a>
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={handleDecline}
+            className="px-4 py-2 text-sm border rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            拒否
+          </button>
+          <button
+            onClick={handleAccept}
+            className="px-4 py-2 text-sm bg-primary text-white rounded hover:opacity-90"
+          >
+            同意
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+```typescript
+// app/layout.tsx の GA初期化を修正
+<Script id="gtag-init" strategy="afterInteractive">
+  {`
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    // デフォルトで拒否（同意後に有効化）
+    gtag('consent', 'default', {
+      analytics_storage: 'denied'
+    });
+
+    // 既に同意済みの場合は有効化
+    if (localStorage.getItem('cookie-consent') === 'accepted') {
+      gtag('consent', 'update', { analytics_storage: 'granted' });
+    }
+
+    gtag('js', new Date());
+    gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+  `}
+</Script>
+```
+
+#### プライバシーポリシーページ
+
+```typescript
+// app/(marketing)/privacy/page.tsx
+export const metadata = {
+  title: 'プライバシーポリシー'
+}
+
+export default function PrivacyPage() {
+  return (
+    <article className="prose dark:prose-invert max-w-3xl mx-auto py-12">
+      <h1>プライバシーポリシー</h1>
+
+      <h2>収集する情報</h2>
+      <p>当サイトでは、Google Analyticsを使用してアクセス情報を収集しています。</p>
+      <ul>
+        <li>IPアドレス（匿名化）</li>
+        <li>ブラウザ・デバイス情報</li>
+        <li>閲覧ページ・滞在時間</li>
+      </ul>
+
+      <h2>Cookieの使用</h2>
+      <p>アクセス解析のためCookieを使用します。ブラウザ設定で無効化できます。</p>
+
+      <h2>第三者への提供</h2>
+      <p>収集した情報は、法令に基づく場合を除き第三者に提供しません。</p>
+
+      <h2>お問い合わせ</h2>
+      <p>プライバシーに関するお問い合わせは以下まで。</p>
+      <p>Email: your-email@example.com</p>
+
+      <p className="text-sm text-gray-500">最終更新日: 2024年1月1日</p>
+    </article>
+  )
+}
+```
+
+#### ディレクトリ構造に追加
+
+```
+app/
+├── (marketing)/
+│   ├── page.tsx            # ホームページ
+│   ├── about/
+│   │   └── page.tsx        # 自己紹介
+│   └── privacy/
+│       └── page.tsx        # プライバシーポリシー ← 追加
 ```
 
 ## テスト戦略 (TDD)
