@@ -7,18 +7,18 @@ export default defineConfig({
 	test: {
 		environment: 'jsdom',
 		globals: true,
-		setupFiles: ['./__tests__/setup.ts'],
-		include: ['**/*.test.{ts,tsx}'],
+		setupFiles: ['./src/test/setup.ts'],
+		include: ['src/**/*.test.{ts,tsx}'],
 		exclude: ['node_modules', '.next', 'e2e'],
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'html'],
-			exclude: ['node_modules', '.next', '**/*.test.{ts,tsx}', '__tests__/setup.ts'],
+			exclude: ['node_modules', '.next', '**/*.test.{ts,tsx}'],
 		},
 	},
 	resolve: {
 		alias: {
-			'@': resolve(__dirname, './'),
+			'@': resolve(__dirname, './src'),
 		},
 	},
 })
