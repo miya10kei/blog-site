@@ -1,7 +1,7 @@
 export const SITE_CONFIG = {
 	name: 'Tech Blog',
 	description: '技術ブログ、個人ブログ、ポートフォリオ',
-	url: 'https://yourdomain.com',
+	url: 'https://blog.miya10kei.dev',
 	author: {
 		name: 'Your Name',
 		twitter: '@yourhandle',
