@@ -268,3 +268,4 @@ npm run lint:fix && npm run format
 6. **Japanese locale:** This is a Japanese tech blog - UI text, dates, and reading time calculations are Japanese-oriented
 7. **No over-engineering:** Keep solutions simple and focused on the immediate task
 8. **Accessibility:** Maintain WCAG 2.1 AA compliance in all UI changes
+9. **GitHub CLI (gh):** When using gh commands, always use the `-R miya10kei/blog-site` flag to specify the repository explicitly (required due to sandbox proxy configuration)
