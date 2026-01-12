@@ -62,7 +62,7 @@ src/
 
 **Content Architecture:**
 - Application code in this repo
-- MDX content hosted externally on GitHub (`tech-blog-content` repo)
+- MDX content hosted externally on GitHub (`miya10kei/blog-contents` repo)
 - Fetched server-side with ISR caching (1 hour revalidation)
 
 **Route Groups:**

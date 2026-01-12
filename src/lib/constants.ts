@@ -9,9 +9,9 @@ export const SITE_CONFIG = {
 } as const
 
 export const GITHUB_CONFIG = {
-	rawBase: 'https://raw.githubusercontent.com/user/tech-blog-content/main',
-	apiBase: 'https://api.github.com/repos/user/tech-blog-content/contents',
-	contentRepo: 'user/tech-blog-content',
+	rawBase: 'https://raw.githubusercontent.com/miya10kei/blog-contents/main',
+	apiBase: 'https://api.github.com/repos/miya10kei/blog-contents/contents',
+	contentRepo: 'miya10kei/blog-contents',
 } as const
 
 export const CACHE_CONFIG = {
