@@ -2,6 +2,9 @@ import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import type { Metadata } from 'next'
 import { ThemeProvider } from 'next-themes'
+import { Footer } from '@/components/layout/Footer'
+import { Header } from '@/components/layout/Header'
+import { SkipLink } from '@/components/layout/SkipLink'
 import { SITE_CONFIG } from '@/lib/constants'
 import './globals.css'
 
@@ -52,9 +55,14 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="ja" suppressHydrationWarning>
-			<body className="antialiased">
+			<body className="flex min-h-screen flex-col antialiased">
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-					{children}
+					<SkipLink />
+					<Header />
+					<main id="main-content" className="flex-1">
+						{children}
+					</main>
+					<Footer />
 					<SpeedInsights />
 					<VercelAnalytics />
 				</ThemeProvider>
