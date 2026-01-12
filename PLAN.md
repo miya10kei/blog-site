@@ -141,6 +141,8 @@ tech-blog/
 │       └── hooks/
 │           └── useSearch.ts
 ├── lib/
+│   ├── constants.ts            # 定数定義（一元管理）
+│   ├── env.ts                  # 環境変数検証 (zod)
 │   ├── content.ts              # コンテンツ取得 (GitHub API)
 │   ├── gtag.ts                 # Google Analytics ヘルパー
 │   ├── mdx.ts                  # MDXパース・コンポーネント
@@ -210,20 +212,100 @@ tech-blog-content/
 └── README.md
 ```
 
+### 定数の一元管理
+
+```typescript
+// lib/constants.ts
+export const SITE_CONFIG = {
+  name: 'Tech Blog',
+  description: '技術ブログ、個人ブログ、ポートフォリオ',
+  url: 'https://yourdomain.com',
+  author: {
+    name: 'Your Name',
+    twitter: '@yourhandle'
+  }
+} as const
+
+export const GITHUB_CONFIG = {
+  rawBase: 'https://raw.githubusercontent.com/user/tech-blog-content/main',
+  apiBase: 'https://api.github.com/repos/user/tech-blog-content/contents',
+  contentRepo: 'user/tech-blog-content'
+} as const
+
+export const CACHE_CONFIG = {
+  revalidateSeconds: 3600, // 1時間
+  staleWhileRevalidate: 86400 // 24時間
+} as const
+
+export const READING_TIME_CONFIG = {
+  wordsPerMinute: 400 // 日本語は文字数ベース
+} as const
+
+export const OG_IMAGE_CONFIG = {
+  width: 1200,
+  height: 630,
+  maxTitleLength: 100
+} as const
+```
+
+### 環境変数検証
+
+```typescript
+// lib/env.ts
+import { z } from 'zod'
+
+const envSchema = z.object({
+  // GitHub
+  GITHUB_TOKEN: z.string().min(1, 'GITHUB_TOKEN is required'),
+
+  // Google Analytics
+  NEXT_PUBLIC_GA_ID: z.string().regex(/^G-[A-Z0-9]+$/, 'Invalid GA4 ID format').optional(),
+
+  // Revalidation
+  REVALIDATE_SECRET: z.string().min(16, 'REVALIDATE_SECRET must be at least 16 characters'),
+
+  // Vercel (自動設定)
+  VERCEL_URL: z.string().optional(),
+  VERCEL_ENV: z.enum(['production', 'preview', 'development']).optional()
+})
+
+export type Env = z.infer<typeof envSchema>
+
+// サーバーサイドでのみ検証
+export function validateEnv(): Env {
+  const result = envSchema.safeParse(process.env)
+
+  if (!result.success) {
+    console.error('❌ Environment validation failed:')
+    result.error.issues.forEach((issue) => {
+      console.error(`  - ${issue.path.join('.')}: ${issue.message}`)
+    })
+    throw new Error('Invalid environment variables')
+  }
+
+  return result.data
+}
+
+// 型安全な環境変数アクセス
+export const env = validateEnv()
+```
+
+> **使用方法**: アプリケーション起動時に `lib/env.ts` をインポートすることで、
+> 環境変数が自動的に検証されます。不正な値があればエラーで起動が停止します。
+
 ### コンテンツ取得の実装
 
 ```typescript
 // lib/content.ts
 import { getFrontmatter } from 'next-mdx-remote-client/utils'
-
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/user/tech-blog-content/main'
+import { GITHUB_CONFIG, CACHE_CONFIG } from './constants'
 
 export async function getPost(slug: string): Promise<string | null> {
   // セキュリティ: slugをサニタイズ
   const sanitizedSlug = slug.replace(/[^a-zA-Z0-9-]/g, '')
-  const url = `${GITHUB_RAW_BASE}/blog/${sanitizedSlug}.mdx`
+  const url = `${GITHUB_CONFIG.rawBase}/blog/${sanitizedSlug}.mdx`
   const response = await fetch(url, {
-    next: { revalidate: 3600 } // 1時間キャッシュ
+    next: { revalidate: CACHE_CONFIG.revalidateSeconds }
   })
 
   // 404の場合はnullを返す
@@ -239,12 +321,12 @@ export async function getPost(slug: string): Promise<string | null> {
 
 export async function getPostList() {
   // GitHub API で記事一覧を取得
-  const url = 'https://api.github.com/repos/user/tech-blog-content/contents/blog'
+  const url = `${GITHUB_CONFIG.apiBase}/blog`
 
   try {
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` },
-      next: { revalidate: 3600 }
+      next: { revalidate: CACHE_CONFIG.revalidateSeconds }
     })
 
     // エラーハンドリング
@@ -631,12 +713,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // app/api/og/route.tsx
 import { ImageResponse } from 'next/og'
 import { NextRequest } from 'next/server'
+import { OG_IMAGE_CONFIG, SITE_CONFIG } from '@/lib/constants'
 
 export const runtime = 'edge'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const title = searchParams.get('title') ?? 'Tech Blog'
+  let title = searchParams.get('title') ?? SITE_CONFIG.name
+
+  // 入力検証: タイトル長制限（DoS対策）
+  if (title.length > OG_IMAGE_CONFIG.maxTitleLength) {
+    title = title.slice(0, OG_IMAGE_CONFIG.maxTitleLength) + '...'
+  }
+
+  // XSS対策: HTMLエスケープ
+  title = title
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 
   return new ImageResponse(
     (
@@ -670,11 +764,11 @@ export async function GET(request: NextRequest) {
             marginTop: '20px'
           }}
         >
-          Tech Blog
+          {SITE_CONFIG.name}
         </div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    { width: OG_IMAGE_CONFIG.width, height: OG_IMAGE_CONFIG.height }
   )
 }
 ```
@@ -919,7 +1013,7 @@ export default nextConfig
 
 ```typescript
 // lib/reading-time.ts
-const WORDS_PER_MINUTE = 400 // 日本語は文字数ベース
+import { READING_TIME_CONFIG } from './constants'
 
 export function calculateReadingTime(content: string): number {
   // HTMLタグとコードブロックを除去
@@ -930,7 +1024,7 @@ export function calculateReadingTime(content: string): number {
 
   // 日本語文字数をカウント
   const charCount = text.replace(/\s/g, '').length
-  const minutes = Math.ceil(charCount / WORDS_PER_MINUTE)
+  const minutes = Math.ceil(charCount / READING_TIME_CONFIG.wordsPerMinute)
 
   return Math.max(1, minutes)
 }
@@ -1026,6 +1120,7 @@ GitHub Raw URL から取得した画像を next/image で最適化（設定は `
 ```typescript
 // features/blog/components/ContentImage.tsx
 import Image from 'next/image'
+import { GITHUB_CONFIG } from '@/lib/constants'
 
 type Props = {
   src: string
@@ -1033,11 +1128,9 @@ type Props = {
   caption?: string
 }
 
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/user/tech-blog-content/main'
-
 export function ContentImage({ src, alt, caption }: Props) {
   // 相対パスをGitHub Raw URLに変換
-  const imageSrc = src.startsWith('http') ? src : `${GITHUB_RAW_BASE}${src}`
+  const imageSrc = src.startsWith('http') ? src : `${GITHUB_CONFIG.rawBase}${src}`
 
   return (
     <figure className="my-8">
@@ -1469,6 +1562,7 @@ Dark Mode:
     "next-themes": "^0.4.0",
     "next-mdx-remote-client": "^2.0.0",
     "lucide-react": "^0.400.0",
+    "zod": "^3.23.0",
     "fuse.js": "^7.0.0",
     "@vercel/speed-insights": "^1.0.0",
     "@vercel/analytics": "^1.0.0"
