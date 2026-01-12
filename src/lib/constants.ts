@@ -1,10 +1,10 @@
 export const SITE_CONFIG = {
 	name: 'miya10kei.dev',
 	description: '技術ブログ、個人ブログ、ポートフォリオ',
-	url: 'https://yourdomain.com',
+	url: 'https://blog.miya10kei.dev',
 	author: {
-		name: 'Your Name',
-		twitter: '@yourhandle',
+		name: 'Keisuke Miyaushiro',
+		twitter: '@miya10kei',
 	},
 } as const
 
