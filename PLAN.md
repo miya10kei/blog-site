@@ -162,6 +162,11 @@ tech-blog/
 ├── playwright.config.ts
 ├── biome.json
 ├── next.config.ts              # セキュリティヘッダー + 画像設定
+├── sentry.client.config.ts     # Sentry クライアント設定
+├── sentry.server.config.ts     # Sentry サーバー設定
+├── sentry.edge.config.ts       # Sentry Edge設定
+├── .husky/
+│   └── pre-commit              # lint-staged実行
 └── package.json
 ```
 
@@ -263,6 +268,9 @@ const envSchema = z.object({
 
   // Revalidation
   REVALIDATE_SECRET: z.string().min(16, 'REVALIDATE_SECRET must be at least 16 characters'),
+
+  // Sentry
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 
   // Vercel (自動設定)
   VERCEL_URL: z.string().optional(),
@@ -1157,6 +1165,135 @@ export function ContentImage({ src, alt, caption }: Props) {
 ![スクリーンショット](/images/blog/hello-world/screenshot.png)
 ```
 
+### 13. エラー監視 (Sentry)
+
+本番環境のエラーを監視・追跡するためにSentryを導入。無料プラン（5,000イベント/月）で個人ブログには十分。
+
+```bash
+npx @sentry/wizard@latest -i nextjs
+```
+
+```typescript
+// sentry.client.config.ts
+import * as Sentry from '@sentry/nextjs'
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+
+  // 無料枠を節約するためサンプリング
+  tracesSampleRate: 0.1,
+  replaysSessionSampleRate: 0.01,
+  replaysOnErrorSampleRate: 1.0,
+
+  // 開発環境では無効化
+  enabled: process.env.NODE_ENV === 'production'
+})
+```
+
+```typescript
+// sentry.server.config.ts
+import * as Sentry from '@sentry/nextjs'
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0.1,
+  enabled: process.env.NODE_ENV === 'production'
+})
+```
+
+```typescript
+// sentry.edge.config.ts
+import * as Sentry from '@sentry/nextjs'
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0.1,
+  enabled: process.env.NODE_ENV === 'production'
+})
+```
+
+環境変数に追加:
+```bash
+NEXT_PUBLIC_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
+SENTRY_AUTH_TOKEN=sntrys_xxx  # ソースマップアップロード用
+```
+
+### 14. Pre-commit フック
+
+コミット前にlint/formatを自動実行し、品質を担保。
+
+```bash
+npm install -D husky lint-staged
+npx husky init
+```
+
+```javascript
+// .husky/pre-commit
+npx lint-staged
+```
+
+```json
+// package.json に追加
+{
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "biome check --write"
+    ],
+    "*.{json,md}": [
+      "biome format --write"
+    ]
+  }
+}
+```
+
+### 15. バンドル最適化
+
+重いコンポーネントを遅延読み込みしてパフォーマンスを向上。
+
+```typescript
+// 検索モーダルの遅延読み込み
+import dynamic from 'next/dynamic'
+
+const SearchModal = dynamic(
+  () => import('@/features/search/components/SearchModal'),
+  {
+    loading: () => <div>Loading...</div>,
+    ssr: false // クライアントのみ
+  }
+)
+```
+
+```typescript
+// シンタックスハイライトの遅延読み込み
+const CodeBlock = dynamic(
+  () => import('@/features/blog/components/CodeBlock'),
+  { loading: () => <pre>Loading code...</pre> }
+)
+```
+
+```typescript
+// next.config.ts に追加
+const nextConfig: NextConfig = {
+  // ... 既存設定
+
+  // バンドル分析（開発時のみ）
+  ...(process.env.ANALYZE === 'true' && {
+    webpack: (config) => {
+      const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
+      config.plugins.push(
+        new BundleAnalyzerPlugin({ analyzerMode: 'static' })
+      )
+      return config
+    }
+  })
+}
+```
+
+```bash
+# バンドル分析実行
+ANALYZE=true npm run build
+```
+
 ## テスト戦略 (TDD)
 
 ### TDD開発サイクル
@@ -1577,6 +1714,10 @@ Dark Mode:
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@biomejs/biome": "^1.9.0",
+    "@sentry/nextjs": "^8.0.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "webpack-bundle-analyzer": "^4.10.0",
     "vitest": "^2.0.0",
     "@vitejs/plugin-react": "^4.0.0",
     "@testing-library/react": "^16.0.0",
@@ -1584,6 +1725,10 @@ Dark Mode:
     "@testing-library/user-event": "^14.0.0",
     "jsdom": "^25.0.0",
     "@playwright/test": "^1.48.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": ["biome check --write"],
+    "*.{json,md}": ["biome format --write"]
   }
 }
 ```
