@@ -7,7 +7,7 @@ type PostMetaProps = {
 
 export function PostMeta({ date, readingTime }: PostMetaProps) {
 	return (
-		<div className="flex items-center gap-4 text-sm text-[var(--muted)]">
+		<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--muted)]">
 			<time dateTime={date}>{formatDate(date)}</time>
 			<span>{formatReadingTime(readingTime)}</span>
 		</div>

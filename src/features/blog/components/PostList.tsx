@@ -8,7 +8,7 @@ type PostListProps = {
 export function PostList({ posts }: PostListProps) {
 	if (posts.length === 0) {
 		return (
-			<div className="py-12 text-center">
+			<div className="pixel-box p-10 text-center">
 				<p className="text-[var(--muted)]">まだ記事がありません。</p>
 			</div>
 		)

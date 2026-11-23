@@ -48,15 +48,15 @@ export function SearchModal({ isOpen, onClose, query, onQueryChange, results }: 
 			{/* Backdrop */}
 			<button
 				type="button"
-				className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+				className="absolute inset-0 bg-black/60"
 				onClick={onClose}
 				aria-label="検索を閉じる"
 			/>
 
 			{/* Modal */}
-			<div className="relative z-10 w-full max-w-xl rounded-lg border border-[var(--muted)]/20 bg-[var(--background)] shadow-2xl">
+			<div className="pixel-box relative z-10 mx-4 w-full max-w-xl">
 				{/* Search input */}
-				<div className="flex items-center border-b border-[var(--muted)]/20 px-4">
+				<div className="flex items-center border-b-2 border-[var(--line)] px-4">
 					<Search className="h-5 w-5 text-[var(--muted)]" />
 					<input
 						ref={inputRef}
@@ -69,7 +69,7 @@ export function SearchModal({ isOpen, onClose, query, onQueryChange, results }: 
 					<button
 						type="button"
 						onClick={onClose}
-						className="rounded p-1 hover:bg-[var(--muted)]/10"
+						className="grid min-h-11 min-w-11 place-items-center hover:bg-[var(--surface-raised)]"
 						aria-label="閉じる"
 					>
 						<X className="h-5 w-5" />
@@ -86,9 +86,9 @@ export function SearchModal({ isOpen, onClose, query, onQueryChange, results }: 
 							key={item.slug}
 							href={`/blog/${item.slug}`}
 							onClick={onClose}
-							className="block rounded-lg p-4 transition-colors hover:bg-[var(--muted)]/10"
+							className="block p-4 hover:bg-[var(--surface-raised)]"
 						>
-							<h3 className="font-semibold">{item.title}</h3>
+							<h3 className="pixel-heading">{item.title}</h3>
 							{item.description && (
 								<p className="mt-1 text-sm text-[var(--muted)] line-clamp-1">{item.description}</p>
 							)}
@@ -97,8 +97,8 @@ export function SearchModal({ isOpen, onClose, query, onQueryChange, results }: 
 				</div>
 
 				{/* Footer */}
-				<div className="border-t border-[var(--muted)]/20 px-4 py-2 text-xs text-[var(--muted)]">
-					<kbd className="rounded border border-[var(--muted)]/20 px-1.5 py-0.5">Esc</kbd> で閉じる
+				<div className="border-t-2 border-[var(--line)] px-4 py-2 text-xs text-[var(--muted)]">
+					<kbd className="border-2 border-[var(--line)] px-1.5 py-0.5">Esc</kbd> で閉じる
 				</div>
 			</div>
 		</div>

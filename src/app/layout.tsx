@@ -1,6 +1,7 @@
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import type { Metadata } from 'next'
+import { DotGothic16, JetBrains_Mono, Noto_Sans_JP } from 'next/font/google'
 import Script from 'next/script'
 import { ThemeProvider } from 'next-themes'
 import { CookieConsent } from '@/components/CookieConsent'
@@ -11,6 +12,25 @@ import { SkipLink } from '@/components/layout/SkipLink'
 import { SITE_CONFIG } from '@/lib/constants'
 import { GA_ID } from '@/lib/gtag'
 import './globals.css'
+
+const dotGothic = DotGothic16({
+	display: 'swap',
+	subsets: ['latin'],
+	variable: '--font-dotgothic',
+	weight: '400',
+})
+
+const jetBrainsMono = JetBrains_Mono({
+	display: 'swap',
+	subsets: ['latin'],
+	variable: '--font-jetbrains-mono',
+})
+
+const notoSansJp = Noto_Sans_JP({
+	display: 'swap',
+	preload: false,
+	variable: '--font-noto-sans-jp',
+})
 
 export const metadata: Metadata = {
 	metadataBase: new URL(SITE_CONFIG.url),
@@ -58,7 +78,11 @@ export default function RootLayout({
 	children: React.ReactNode
 }>) {
 	return (
-		<html lang="ja" suppressHydrationWarning>
+		<html
+			lang="ja"
+			className={`${dotGothic.variable} ${jetBrainsMono.variable} ${notoSansJp.variable}`}
+			suppressHydrationWarning
+		>
 			<head>
 				{GA_ID ? (
 					<>

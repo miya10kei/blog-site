@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { PageHeading } from '@/components/ui/PageHeading'
 import { SITE_CONFIG } from '@/lib/constants'
 
 export const metadata: Metadata = {
@@ -9,9 +10,11 @@ export const metadata: Metadata = {
 export default function AboutPage() {
 	return (
 		<div className="mx-auto max-w-3xl px-4 py-12">
-			<h1 className="mb-8 text-3xl font-bold">About</h1>
+			<PageHeading eyebrow="ABOUT" sprite="user">
+				About
+			</PageHeading>
 
-			<div className="prose prose-neutral dark:prose-invert max-w-none">
+			<div className="pixel-box pixel-prose p-5 sm:p-8">
 				<h2>プロフィール</h2>
 				<p>
 					{SITE_CONFIG.author.name}

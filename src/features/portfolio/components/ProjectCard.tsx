@@ -18,24 +18,24 @@ type ProjectCardProps = {
 
 export function ProjectCard({ project }: ProjectCardProps) {
 	return (
-		<article className="group overflow-hidden rounded-lg border border-[var(--muted)]/20 transition-shadow hover:shadow-lg">
+		<article className="pixel-box pixel-box-interactive overflow-hidden">
 			{project.image && (
-				<div className="relative aspect-video overflow-hidden bg-[var(--muted)]/10">
+				<div className="relative aspect-video overflow-hidden border-b-2 border-[var(--line)] bg-[var(--surface-raised)]">
 					<Image
 						src={project.image}
 						alt={project.title}
 						fill
-						className="object-cover transition-transform group-hover:scale-105"
+						className="object-cover [image-rendering:pixelated]"
 					/>
 				</div>
 			)}
 			<div className="p-6">
-				<h3 className="mb-2 text-xl font-semibold">{project.title}</h3>
+				<h3 className="pixel-heading mb-2 text-xl">{project.title}</h3>
 				<p className="mb-4 text-[var(--muted)] line-clamp-2">{project.description}</p>
 
 				<div className="mb-4 flex flex-wrap gap-2">
 					{project.tags.map((tag) => (
-						<span key={tag} className="rounded-full bg-[var(--muted)]/10 px-2 py-0.5 text-xs">
+						<span key={tag} className="pixel-tag">
 							{tag}
 						</span>
 					))}
@@ -47,7 +47,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 							href={project.github}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="flex items-center gap-1 text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+							className="pixel-nav-link gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
 						>
 							<GithubIcon className="h-4 w-4" />
 							GitHub
@@ -58,7 +58,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 							href={project.demo}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="flex items-center gap-1 text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+							className="pixel-nav-link gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
 						>
 							<ExternalLink className="h-4 w-4" />
 							Demo

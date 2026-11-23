@@ -5,7 +5,7 @@ export function Footer() {
 	const currentYear = new Date().getFullYear()
 
 	return (
-		<footer className="border-t border-[var(--muted)]/20 py-8">
+		<footer className="border-t-4 border-[var(--line)] bg-[var(--surface)] py-6">
 			<div className="mx-auto max-w-5xl px-4">
 				<div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
 					<p className="text-sm text-[var(--muted)]">
@@ -14,7 +14,10 @@ export function Footer() {
 					<nav aria-label="フッターナビゲーション">
 						<ul className="flex gap-4 text-sm">
 							<li>
-								<Link href="/privacy" className="text-[var(--muted)] hover:underline">
+								<Link
+									href="/privacy"
+									className="pixel-nav-link text-[var(--muted)] hover:text-[var(--foreground)]"
+								>
 									プライバシーポリシー
 								</Link>
 							</li>

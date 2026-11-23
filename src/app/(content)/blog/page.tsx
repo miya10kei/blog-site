@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { PageHeading } from '@/components/ui/PageHeading'
 import { PostList } from '@/features/blog/components/PostList'
 import { getPostList } from '@/lib/content'
 
@@ -18,7 +19,9 @@ export default async function BlogPage() {
 
 	return (
 		<div className="mx-auto max-w-3xl px-4 py-12">
-			<h1 className="mb-8 text-3xl font-bold">ブログ</h1>
+			<PageHeading eyebrow="BLOG" sprite="book">
+				ブログ
+			</PageHeading>
 			<PostList posts={posts} />
 		</div>
 	)

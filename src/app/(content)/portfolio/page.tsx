@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { PageHeading } from '@/components/ui/PageHeading'
 import { type Project, ProjectCard } from '@/features/portfolio/components/ProjectCard'
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ const projects: Project[] = [
 export default function PortfolioPage() {
 	return (
 		<div className="mx-auto max-w-5xl px-4 py-12">
-			<h1 className="mb-8 text-3xl font-bold">ポートフォリオ</h1>
+			<PageHeading eyebrow="PORTFOLIO" sprite="folder">
+				ポートフォリオ
+			</PageHeading>
 			<div className="grid gap-6 md:grid-cols-2">
 				{projects.map((project) => (
 					<ProjectCard key={project.title} project={project} />

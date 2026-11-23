@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { PageHeading } from '@/components/ui/PageHeading'
 import { getAllTags } from '@/lib/content'
 
 export const metadata: Metadata = {
@@ -18,18 +19,16 @@ export default async function TagsPage() {
 
 	return (
 		<div className="mx-auto max-w-3xl px-4 py-12">
-			<h1 className="mb-8 text-3xl font-bold">タグ一覧</h1>
+			<PageHeading eyebrow="TAGS" sprite="tag">
+				タグ一覧
+			</PageHeading>
 
 			{tags.length === 0 ? (
 				<p className="text-[var(--muted)]">タグがありません。</p>
 			) : (
 				<div className="flex flex-wrap gap-3">
 					{tags.map((tag) => (
-						<Link
-							key={tag}
-							href={`/tags/${tag}`}
-							className="rounded-full bg-[var(--muted)]/10 px-4 py-2 transition-colors hover:bg-[var(--muted)]/20"
-						>
+						<Link key={tag} href={`/tags/${tag}`} className="pixel-tag">
 							{tag}
 						</Link>
 					))}
