@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -16,9 +16,9 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
+			"preset": "recommended",
 			"a11y": {
-				"recommended": true
+				"preset": "recommended"
 			},
 			"correctness": {
 				"noUnusedImports": "error",
@@ -47,5 +47,16 @@
 				"organizeImports": "on"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.md", "**/*.svg", "**/*.yml"],
+			"formatter": {
+				"enabled": false
+			},
+			"linter": {
+				"enabled": false
+			}
+		}
+	]
 }
