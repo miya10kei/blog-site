@@ -60,7 +60,7 @@ export default function RootLayout({
 	return (
 		<html lang="ja" suppressHydrationWarning>
 			<head>
-				{GA_ID && (
+				{GA_ID ? (
 					<>
 						<Script
 							strategy="afterInteractive"
@@ -86,7 +86,7 @@ export default function RootLayout({
               `}
 						</Script>
 					</>
-				)}
+				) : null}
 			</head>
 			<body className="flex min-h-screen flex-col antialiased">
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
