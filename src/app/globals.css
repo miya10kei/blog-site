@@ -125,15 +125,17 @@ body {
 	}
 
 	.pixel-box-interactive {
-		transition:
-			transform 120ms steps(2),
-			box-shadow 120ms steps(2);
+		transition: box-shadow 120ms steps(2);
 	}
 
 	.pixel-box-interactive:hover,
 	.pixel-box-interactive:focus-within {
 		box-shadow: 6px 6px 0 var(--shadow);
-		transform: translate(-2px, -2px);
+	}
+
+	.pixel-box-interactive:hover {
+		outline: 2px solid currentColor;
+		outline-offset: -6px;
 	}
 
 	.pixel-button {
@@ -149,19 +151,19 @@ body {
 		letter-spacing: 0.04em;
 		min-height: 44px;
 		padding: 0.5rem 1.25rem;
-		transition:
-			transform 80ms steps(2),
-			box-shadow 80ms steps(2);
+		transition: box-shadow 80ms steps(2);
 	}
 
 	.pixel-button:hover {
 		box-shadow: 5px 5px 0 var(--shadow);
-		transform: translate(-2px, -2px);
+		outline: 2px solid currentColor;
+		outline-offset: -5px;
 	}
 
 	.pixel-button:active {
-		box-shadow: 0 0 0 var(--shadow);
-		transform: translate(3px, 3px);
+		box-shadow: 1px 1px 0 var(--shadow);
+		outline: 2px solid currentColor;
+		outline-offset: -5px;
 	}
 
 	.pixel-button-primary {
@@ -193,7 +195,6 @@ body {
 		font-size: 1rem;
 		box-shadow: 2px 2px 0 var(--shadow);
 		transition:
-			transform 80ms steps(2),
 			box-shadow 80ms steps(2),
 			background-color 80ms steps(2);
 	}
@@ -202,7 +203,6 @@ body {
 		background: var(--highlight);
 		box-shadow: 4px 4px 0 var(--shadow);
 		color: var(--on-highlight);
-		transform: translate(-2px, -2px);
 	}
 
 	.pixel-nav-link {
@@ -335,8 +335,12 @@ body {
 		margin-top: 0.35em;
 	}
 
-	.pixel-prose li::marker {
+	.pixel-prose ul > li::marker {
 		color: var(--sprite-accent);
+	}
+
+	.pixel-prose ol > li::marker {
+		color: var(--foreground);
 	}
 
 	.pixel-prose strong {
@@ -389,6 +393,11 @@ body {
 		white-space: pre;
 	}
 
+	.pixel-prose a:hover code {
+		background: transparent;
+		color: inherit;
+	}
+
 	.pixel-prose table {
 		border-collapse: collapse;
 		display: block;
@@ -436,13 +445,5 @@ body {
 	*::after {
 		animation: none !important;
 		transition: none !important;
-	}
-
-	.pixel-box-interactive:hover,
-	.pixel-box-interactive:focus-within,
-	.pixel-button:hover,
-	.pixel-button:active,
-	a.pixel-tag:hover {
-		transform: none;
 	}
 }
