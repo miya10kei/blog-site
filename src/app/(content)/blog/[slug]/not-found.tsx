@@ -1,16 +1,14 @@
 import Link from 'next/link'
+import { StatusPanel } from '@/components/ui/StatusPanel'
 
 export default function BlogPostNotFound() {
 	return (
-		<div className="flex flex-col items-center justify-center py-24 text-center">
-			<h1 className="mb-4 text-4xl font-bold">404</h1>
+		<StatusPanel>
+			<h1 className="pixel-heading mb-4 text-6xl">404</h1>
 			<p className="mb-8 text-lg text-[var(--muted)]">記事が見つかりませんでした。</p>
-			<Link
-				href="/blog"
-				className="rounded-lg bg-[var(--foreground)] px-6 py-3 text-[var(--background)] transition-opacity hover:opacity-80"
-			>
+			<Link href="/blog" className="pixel-button pixel-button-primary">
 				ブログ一覧へ戻る
 			</Link>
-		</div>
+		</StatusPanel>
 	)
 }

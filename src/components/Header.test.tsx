@@ -20,6 +20,11 @@ describe('Header', () => {
 		expect(screen.getByRole('link', { name: /about/i })).toBeInTheDocument()
 	})
 
+	it('should have theme toggle', () => {
+		render(<Header />)
+		expect(screen.getByRole('button', { name: 'テーマ切り替え' })).toBeInTheDocument()
+	})
+
 	it('should render as header element', () => {
 		render(<Header />)
 		expect(screen.getByRole('banner')).toBeInTheDocument()

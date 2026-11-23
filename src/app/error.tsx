@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { StatusPanel } from '@/components/ui/StatusPanel'
 
 export default function ErrorPage({
 	error,
@@ -15,16 +16,12 @@ export default function ErrorPage({
 	}, [error])
 
 	return (
-		<div className="flex flex-1 flex-col items-center justify-center py-24 text-center">
-			<h1 className="mb-4 text-4xl font-bold">エラーが発生しました</h1>
+		<StatusPanel>
+			<h1 className="pixel-heading mb-4 text-3xl">エラーが発生しました</h1>
 			<p className="mb-8 text-[var(--muted)]">申し訳ありません。問題が発生しました。</p>
-			<button
-				type="button"
-				onClick={reset}
-				className="rounded-lg bg-[var(--foreground)] px-6 py-3 text-[var(--background)] transition-opacity hover:opacity-80"
-			>
+			<button type="button" onClick={reset} className="pixel-button pixel-button-primary">
 				再試行
 			</button>
-		</div>
+		</StatusPanel>
 	)
 }

@@ -9,9 +9,9 @@ type PostCardProps = {
 
 export function PostCard({ post, readingTime }: PostCardProps) {
 	return (
-		<article className="group rounded-lg border border-[var(--muted)]/20 p-6 transition-shadow hover:shadow-lg">
+		<article className="group pixel-box pixel-box-interactive p-5 sm:p-6">
 			<Link href={`/blog/${post.slug}`} className="block">
-				<h2 className="mb-2 text-xl font-semibold group-hover:text-[var(--color-primary)]">
+				<h2 className="pixel-heading mb-2 text-xl group-hover:text-[var(--link)] sm:text-2xl">
 					{post.title}
 				</h2>
 				{post.description && (
@@ -21,9 +21,9 @@ export function PostCard({ post, readingTime }: PostCardProps) {
 					<time dateTime={post.date}>{formatDate(post.date)}</time>
 					{readingTime && <span>{formatReadingTime(readingTime)}</span>}
 					{post.tags && post.tags.length > 0 && (
-						<div className="flex gap-2">
+						<div className="flex flex-wrap gap-2">
 							{post.tags.slice(0, 3).map((tag) => (
-								<span key={tag} className="rounded-full bg-[var(--muted)]/10 px-2 py-0.5 text-xs">
+								<span key={tag} className="pixel-tag">
 									{tag}
 								</span>
 							))}

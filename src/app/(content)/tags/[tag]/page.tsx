@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { PageHeading } from '@/components/ui/PageHeading'
 import { PostList } from '@/features/blog/components/PostList'
 import { getAllTags, getPostsByTag } from '@/lib/content'
 
@@ -41,9 +42,9 @@ export default async function TagPage({ params }: Props) {
 
 	return (
 		<div className="mx-auto max-w-3xl px-4 py-12">
-			<h1 className="mb-8 text-3xl font-bold">
+			<PageHeading eyebrow="TAG" sprite="tag">
 				<span className="text-[var(--muted)]">タグ:</span> {decodedTag}
-			</h1>
+			</PageHeading>
 			<PostList posts={posts} />
 		</div>
 	)

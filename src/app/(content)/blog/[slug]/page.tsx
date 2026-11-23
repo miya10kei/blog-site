@@ -67,13 +67,13 @@ export default async function BlogPostPage({ params }: Props) {
 
 	return (
 		<article className="mx-auto max-w-3xl px-4 py-12">
-			<header className="mb-8">
-				<h1 className="mb-4 text-3xl font-bold">{frontmatter.title}</h1>
+			<header className="pixel-box mb-8 p-5 sm:p-8">
+				<h1 className="pixel-heading mb-4 text-3xl sm:text-4xl">{frontmatter.title}</h1>
 				<PostMeta date={frontmatter.date} readingTime={readingTime} />
 				{frontmatter.tags && frontmatter.tags.length > 0 && (
-					<div className="mt-4 flex gap-2">
+					<div className="mt-4 flex flex-wrap gap-2">
 						{frontmatter.tags.map((tag) => (
-							<span key={tag} className="rounded-full bg-[var(--muted)]/10 px-3 py-1 text-sm">
+							<span key={tag} className="pixel-tag">
 								{tag}
 							</span>
 						))}
@@ -81,7 +81,7 @@ export default async function BlogPostPage({ params }: Props) {
 				)}
 			</header>
 
-			<div className="prose prose-neutral dark:prose-invert max-w-none">
+			<div className="pixel-box pixel-prose p-5 sm:p-8">
 				<MDXRemote source={mdxContent} />
 			</div>
 		</article>

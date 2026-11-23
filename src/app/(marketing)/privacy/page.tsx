@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
 	return (
 		<article className="mx-auto max-w-3xl px-4 py-12">
-			<div className="prose prose-neutral dark:prose-invert max-w-none">
+			<div className="pixel-box pixel-prose p-5 sm:p-8">
 				<h1>プライバシーポリシー</h1>
 
 				<h2>収集する情報</h2>
